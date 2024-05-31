@@ -1,0 +1,46 @@
+{
+    "version": 7,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 27,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "vs17",
+            "displayName": "Visual Studio 2022",
+            "description": "Visual Studio 2022 Generator.",
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/out/build/${presetName}"
+        },
+        {
+            "name": "emscripten",
+            "displayName": "Emscripten",
+            "generator": "Ninja Multi-Config",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "toolchainFile": "emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Emscripten-Debug",
+            "configurePreset": "emscripten",
+            "configuration": "Debug"
+        },
+        {
+            "name": "Emscripten-Release",
+            "configurePreset": "emscripten",
+            "configuration": "Release"
+        },
+        {
+            "name": "x64-Debug",
+            "configurePreset": "vs17",
+            "configuration": "Debug"
+        },
+        {
+            "name": "x64-Release",
+            "configurePreset": "vs17",
+            "configuration": "Release"
+        }
+    ]
+}
