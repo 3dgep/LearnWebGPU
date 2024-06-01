@@ -5,16 +5,38 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "step000 - Debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/out/build/vs17/step000/Debug/step000.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "step001 - Debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/out/build/vs17/step001/Debug/step001.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
             "type": "chrome",
             "request": "launch",
-            "name": "step000",
+            "name": "step000 - Chrome",
             "url": "http://localhost:3000/out/build/emscripten/step000/Debug/step000.html",
             "preLaunchTask": "StartServer"
         },
         {
             "type": "chrome",
             "request": "launch",
-            "name": "step001",
+            "name": "step001 - Chrome",
             "url": "http://localhost:3000/out/build/emscripten/step001/Debug/step001.html",
             "preLaunchTask": "StartServer"
         }

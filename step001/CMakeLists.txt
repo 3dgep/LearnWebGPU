@@ -10,13 +10,9 @@ if(EMSCRIPTEN)
 		-sUSE_GLFW=3
 		-sUSE_WEBGPU
 		-sASYNCIFY
+		-g
 	)
-	set_target_properties(step001
-	PROPERTIES
-		SUFFIX .html
-	)
+	set_target_properties(step001 PROPERTIES SUFFIX .html)
 else()
-	target_link_libraries(step001
-		PRIVATE glfw
-	)
+	target_link_libraries(step001 PRIVATE glfw)
 endif()
