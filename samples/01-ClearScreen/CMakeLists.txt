@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(TARGET_NAME 01-ClearScreen)
 
 add_executable( ${TARGET_NAME} main.cpp )
+target_link_libraries( ${TARGET_NAME}
+	PRIVATE SDL2::SDL2 webgpu
+)
 
 if(EMSCRIPTEN)
 	target_link_options( ${TARGET_NAME}
