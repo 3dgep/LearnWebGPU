@@ -4,3 +4,6 @@
 [submodule "externals/SDL"]
 	path = externals/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "externals/sdl2webgpu"]
+	path = externals/sdl2webgpu
+	url = https://github.com/eliemichel/sdl2webgpu.git
