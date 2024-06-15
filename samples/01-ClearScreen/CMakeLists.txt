@@ -20,4 +20,9 @@ if(EMSCRIPTEN)
 	PROPERTIES
 		SUFFIX .html
 	)
-endif()
+endif(EMSCRIPTEN)
+
+# The application's binary must find wgpu.dll or libwgpu.so at runtime,
+# so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)
+# next to the binary.
+target_copy_webgpu_binaries( ${TARGET_NAME} )
