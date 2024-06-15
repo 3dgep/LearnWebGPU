@@ -47,6 +47,7 @@ SDL_Window* window = nullptr;
 
 WGPUInstance instance = nullptr;
 WGPUDevice device = nullptr;
+WGPUQueue queue = nullptr;
 WGPUSurface surface = nullptr;
 
 bool isRunning = true;
@@ -121,13 +122,32 @@ WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descri
     while (!userData.done)
     {
         emscripten_sleep(100);
-}
+    }
 #endif
 
     // The request must complete.
     assert(userData.done);
 
     return userData.device;
+}
+
+// A callback function that is called when the GPU device is no longer available for some reason.
+void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
+{
+    std::cerr << "Device lost: " << std::hex << reason << std::dec;
+    if (message)
+        std::cerr << "(" << message << ")";
+    std::cerr << std::endl;
+}
+
+// A callback function that is called when we do something wrong with the device.
+// For example, we run out of memory or we do something wrong with the API.
+void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
+{
+    std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
+    if (message)
+        std::cerr << "(" << message << ")";
+    std::cerr << std::endl;
 }
 
 void inspectAdapter(WGPUAdapter adapter)
@@ -193,9 +213,9 @@ void inspectAdapter(WGPUAdapter adapter)
     for (auto feature : features)
     {
         // Print features in hexadecimal format to make it easier to compare with the WebGPU specification.
-        std::cout << std::hex << "  - 0x" << feature << ": " << featureNames[feature] << std::endl;
+        std::cout << "  - 0x" << std::hex << feature << ": " << featureNames[feature] << std::endl;
     }
-
+    std::cout << std::dec; // Reset to decimal format.
 }
 
 // Initialize the application.
@@ -215,6 +235,20 @@ void init()
     instance = wgpuCreateInstance(nullptr);
 #else
     WGPUInstanceDescriptor instanceDescriptor{};
+#ifdef WEBGPU_BACKEND_DAWN
+    // Make sure the uncaptured error callback is called as soon as an error
+    // occurs, rather than waiting for the next Tick. This enables using the 
+    // stack trace in which the uncaptured error occurred when breaking into the
+    // uncaptured error callback.
+    WGPUDawnTogglesDescriptor toggles{};
+    toggles.chain.next = nullptr;
+    toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
+    toggles.disabledTogglesCount = 0;
+    toggles.enabledTogglesCount = 1;
+    const char* enabledToggles[] = { "enable_immediate_error_handling" };
+    toggles.enabledToggles = enabledToggles;
+    instanceDescriptor.nextInChain = &toggles.chain;
+#endif
     instance = wgpuCreateInstance(&instanceDescriptor);
 #endif
 
@@ -239,16 +273,16 @@ void init()
     // Create a minimal device with no special features and default limits.
     WGPUDeviceDescriptor deviceDescriptor{};
     deviceDescriptor.label = "LearnWebGPU"; // You can use anything here.
-#ifdef __EMSCRIPTEN__
-    deviceDescriptor.requiredFeatureCount = 0; // We don't require any extra features.
-#else
+#ifdef WEBGPU_BACKEND_DAWN
     deviceDescriptor.requiredFeaturesCount = 0; // We don't require any extra features.
+#else
+    deviceDescriptor.requiredFeatureCount = 0; // We don't require any extra features.
 #endif
     deviceDescriptor.requiredFeatures = nullptr;
     deviceDescriptor.requiredLimits = nullptr; // We don't require any specific limits.
     deviceDescriptor.defaultQueue.nextInChain = nullptr;
     deviceDescriptor.defaultQueue.label = "Default Queue"; // You can use anything here.
-    deviceDescriptor.deviceLostCallback = nullptr;
+    deviceDescriptor.deviceLostCallback = onDeviceLost;
     device = requestDevice(adapter, &deviceDescriptor);
 
     // We are done with the adapter, it is safe to release it.
@@ -260,6 +294,17 @@ void init()
         return;
     }
 
+    // Set the uncaptured error callback.
+    wgpuDeviceSetUncapturedErrorCallback(device, onUncapturedErrorCallback, nullptr);
+
+    // Get the device queue.
+    queue = wgpuDeviceGetQueue(device);
+
+    if(!queue)
+    {
+        std::cerr << "Failed to get device queue." << std::endl;
+        return;
+    }
 
 
 
@@ -289,6 +334,7 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
+    wgpuQueueRelease(queue);
     wgpuDeviceRelease(device);
     wgpuInstanceRelease(instance);
 
