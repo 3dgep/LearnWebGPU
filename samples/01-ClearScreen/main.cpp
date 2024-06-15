@@ -24,19 +24,13 @@ std::map<WGPUFeatureName, std::string> featureNames = {
     {WGPUFeatureName_RG11B10UfloatRenderable, "RG11B10UfloatRenderable"},
     {WGPUFeatureName_BGRA8UnormStorage, "BGRA8UnormStorage"},
     {WGPUFeatureName_Float32Filterable, "Float32Filterable"},
-#ifdef WEBGPU_BACKEND_DAWN
-    {WGPUFeatureName_PipelineStatisticsQuery, "PipelineStatisticsQuery"},
-    {WGPUFeatureName_DawnShaderFloat16, "DawnShaderFloat16"},
-    {WGPUFeatureName_DawnInternalUsages, "DawnInternalUsages"},
-    {WGPUFeatureName_DawnMultiPlanarFormats, "DawnMultiPlanarFormats"},
-    {WGPUFeatureName_DawnNative, "DawnNative"},
-    {WGPUFeatureName_ChromiumExperimentalDp4a, "ChromiumExperimentalDp4a"},
-    {WGPUFeatureName_TimestampQueryInsidePasses, "TimestampQueryInsidePasses"},
-    {WGPUFeatureName_ImplicitDeviceSynchronization, "ImplicitDeviceSynchronization"},
-    {WGPUFeatureName_SurfaceCapabilities, "SurfaceCapabilities"},
-    {WGPUFeatureName_TransientAttachments, "TransientAttachments"},
-    {WGPUFeatureName_MSAARenderToSingleSampled, "MSAARenderToSingleSampled"},
-#endif
+};
+
+std::map<WGPUQueueWorkDoneStatus, std::string> queuWorkDoneStatusNames = {
+    {WGPUQueueWorkDoneStatus_Success, "Success"},
+    {WGPUQueueWorkDoneStatus_Error, "Error"},
+    {WGPUQueueWorkDoneStatus_Unknown, "Unknown"},
+    {WGPUQueueWorkDoneStatus_DeviceLost, "DeviceLost"},
 };
 
 constexpr int WINDOW_WIDTH = 1280;
@@ -91,63 +85,6 @@ WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions
     assert(userData.done);
 
     return userData.adapter;
-}
-
-WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descriptor)
-{
-    struct UserData
-    {
-        WGPUDevice device = nullptr;
-        bool done = false;
-    } userData;
-
-    auto requestDeviceCallback = [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userData)
-        {
-            auto& data = *static_cast<UserData*>(userData);
-            if (status == WGPURequestDeviceStatus_Success)
-            {
-                data.device = device;
-            }
-            else
-            {
-                std::cerr << "Failed to request device: " << message << std::endl;
-            }
-            data.done = true;
-        };
-
-    wgpuAdapterRequestDevice(adapter, descriptor, requestDeviceCallback, &userData);
-
-    // When using Emscripten, we have to wait for the request to complete.
-#ifdef __EMSCRIPTEN__
-    while (!userData.done)
-    {
-        emscripten_sleep(100);
-    }
-#endif
-
-    // The request must complete.
-    assert(userData.done);
-
-    return userData.device;
-}
-
-// A callback function that is called when the GPU device is no longer available for some reason.
-void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
-{
-    std::cerr << "Device lost: " << std::hex << reason << std::dec;
-    if (message)
-        std::cerr << "(" << message << ")";
-    std::cerr << std::endl;
-}
-
-// A callback function that is called when we do something wrong with the device.
-// For example, we run out of memory or we do something wrong with the API.
-void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
-{
-    std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
-    if (message)
-        std::cerr << "(" << message << ")";
-    std::cerr << std::endl;
 }
 
 void inspectAdapter(WGPUAdapter adapter)
@@ -218,6 +155,69 @@ void inspectAdapter(WGPUAdapter adapter)
     std::cout << std::dec; // Reset to decimal format.
 }
 
+WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descriptor)
+{
+    struct UserData
+    {
+        WGPUDevice device = nullptr;
+        bool done = false;
+    } userData;
+
+    auto requestDeviceCallback = [](WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* userData)
+        {
+            auto& data = *static_cast<UserData*>(userData);
+            if (status == WGPURequestDeviceStatus_Success)
+            {
+                data.device = device;
+            }
+            else
+            {
+                std::cerr << "Failed to request device: " << message << std::endl;
+            }
+            data.done = true;
+        };
+
+    wgpuAdapterRequestDevice(adapter, descriptor, requestDeviceCallback, &userData);
+
+    // When using Emscripten, we have to wait for the request to complete.
+#ifdef __EMSCRIPTEN__
+    while (!userData.done)
+    {
+        emscripten_sleep(100);
+    }
+#endif
+
+    // The request must complete.
+    assert(userData.done);
+
+    return userData.device;
+}
+
+// A callback function that is called when the GPU device is no longer available for some reason.
+void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
+{
+    std::cerr << "Device lost: " << std::hex << reason << std::dec;
+    if (message)
+        std::cerr << "(" << message << ")";
+    std::cerr << std::endl;
+}
+
+// A callback function that is called when we do something wrong with the device.
+// For example, we run out of memory or we do something wrong with the API.
+void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
+{
+    std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
+    if (message)
+        std::cerr << "(" << message << ")";
+    std::cerr << std::endl;
+}
+
+// A callback function that is called when submitted work is done.
+void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
+{
+    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queuWorkDoneStatusNames[status] << std::endl;
+}
+
 // Initialize the application.
 void init()
 {
@@ -240,12 +240,14 @@ void init()
     // occurs, rather than waiting for the next Tick. This enables using the 
     // stack trace in which the uncaptured error occurred when breaking into the
     // uncaptured error callback.
+    const char* enabledToggles[] = {
+        "enable_immediate_error_handling"
+    };
     WGPUDawnTogglesDescriptor toggles{};
     toggles.chain.next = nullptr;
     toggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
-    toggles.disabledTogglesCount = 0;
-    toggles.enabledTogglesCount = 1;
-    const char* enabledToggles[] = { "enable_immediate_error_handling" };
+    toggles.disabledToggleCount = 0;
+    toggles.enabledToggleCount = std::size(enabledToggles);
     toggles.enabledToggles = enabledToggles;
     instanceDescriptor.nextInChain = &toggles.chain;
 #endif
@@ -273,11 +275,7 @@ void init()
     // Create a minimal device with no special features and default limits.
     WGPUDeviceDescriptor deviceDescriptor{};
     deviceDescriptor.label = "LearnWebGPU"; // You can use anything here.
-#ifdef WEBGPU_BACKEND_DAWN
-    deviceDescriptor.requiredFeaturesCount = 0; // We don't require any extra features.
-#else
     deviceDescriptor.requiredFeatureCount = 0; // We don't require any extra features.
-#endif
     deviceDescriptor.requiredFeatures = nullptr;
     deviceDescriptor.requiredLimits = nullptr; // We don't require any specific limits.
     deviceDescriptor.defaultQueue.nextInChain = nullptr;
@@ -300,14 +298,13 @@ void init()
     // Get the device queue.
     queue = wgpuDeviceGetQueue(device);
 
-    if(!queue)
+    if (!queue)
     {
         std::cerr << "Failed to get device queue." << std::endl;
         return;
     }
 
-
-
+    wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr);
 }
 
 void update(void* userdata = nullptr)
