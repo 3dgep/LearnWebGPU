@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.27)
 
+set( DAWN_BUILD_SAMPLES OFF CACHE BOOL "Enables building Dawn's samples." )
 set( DAWN_USE_GLFW OFF CACHE BOOL "Use GLFW with Dawn." )
+set( TINT_BUILD_CMD_TOOLS OFF CACHE BOOL "Build the Tint command line tools." )
 set( SDL_SHARED OFF CACHE BOOL "Build a shared version of the library." )
 set( SDL_TEST OFF CACHE BOOL "Build the SDL2_test library." )
 set( SDL2_DISABLE_SDL2MAIN ON CACHE BOOL "Disable the SDLmain target." )
