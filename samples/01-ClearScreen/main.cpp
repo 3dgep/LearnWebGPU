@@ -314,6 +314,20 @@ void init()
     }
 
     wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr);
+
+    // Configure the render surface.
+    WGPUSurfaceConfiguration config{};
+    config.device = device;
+    config.format = wgpuSurfaceGetPreferredFormat(surface, adapter);
+    config.usage = WGPUTextureUsage_RenderAttachment;
+    config.viewFormatCount = 0;
+    config.viewFormats = nullptr;
+    config.alphaMode = WGPUCompositeAlphaMode_Auto;
+    config.width = WINDOW_WIDTH;
+    config.height = WINDOW_HEIGHT;
+    config.presentMode = WGPUPresentMode_Mailbox;
+    wgpuSurfaceConfigure(surface, &config);
+
 }
 
 void update(void* userdata = nullptr)
@@ -336,6 +350,8 @@ void update(void* userdata = nullptr)
         default:;
         }
     }
+
+
 }
 
 void destroy()
