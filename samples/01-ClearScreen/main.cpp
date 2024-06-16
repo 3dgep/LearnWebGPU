@@ -5,6 +5,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.h>
+#include <sdl2webgpu.h>
 
 #include <cassert>
 #include <iostream>
@@ -26,7 +27,7 @@ std::map<WGPUFeatureName, std::string> featureNames = {
     {WGPUFeatureName_Float32Filterable, "Float32Filterable"},
 };
 
-std::map<WGPUQueueWorkDoneStatus, std::string> queuWorkDoneStatusNames = {
+std::map<WGPUQueueWorkDoneStatus, std::string> queueWorkDoneStatusNames = {
     {WGPUQueueWorkDoneStatus_Success, "Success"},
     {WGPUQueueWorkDoneStatus_Error, "Error"},
     {WGPUQueueWorkDoneStatus_Unknown, "Unknown"},
@@ -150,9 +151,8 @@ void inspectAdapter(WGPUAdapter adapter)
     for (auto feature : features)
     {
         // Print features in hexadecimal format to make it easier to compare with the WebGPU specification.
-        std::cout << "  - 0x" << std::hex << feature << ": " << featureNames[feature] << std::endl;
+        std::cout << "  - 0x" << std::hex << feature << std::dec << ": " << featureNames[feature] << std::endl;
     }
-    std::cout << std::dec; // Reset to decimal format.
 }
 
 WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descriptor)
@@ -215,7 +215,7 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 // A callback function that is called when submitted work is done.
 void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
 {
-    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queuWorkDoneStatusNames[status] << std::endl;
+    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
 }
 
 // Initialize the application.
@@ -260,8 +260,17 @@ void init()
         return;
     }
 
+    surface = SDL_GetWGPUSurface(instance, window);
+
+    if(!surface)
+    {
+        std::cerr << "Failed to get surface." << std::endl;
+        return;
+    }
+
     // Request the adapter.
     WGPURequestAdapterOptions requestAdapaterOptions{};
+    requestAdapaterOptions.compatibleSurface = surface;
     WGPUAdapter adapter = requestAdapter(instance, &requestAdapaterOptions);
 
     if (!adapter)
@@ -331,6 +340,7 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
+    wgpuSurfaceRelease(surface);
     wgpuQueueRelease(queue);
     wgpuDeviceRelease(device);
     wgpuInstanceRelease(instance);

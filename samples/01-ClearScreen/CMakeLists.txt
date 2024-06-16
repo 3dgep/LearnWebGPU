@@ -7,7 +7,7 @@ set(TARGET_NAME 01-ClearScreen)
 
 add_executable( ${TARGET_NAME} main.cpp )
 target_link_libraries( ${TARGET_NAME}
-	PRIVATE SDL2::SDL2 webgpu
+	PRIVATE SDL2::SDL2 webgpu sdl2webgpu
 )
 
 if(EMSCRIPTEN)
