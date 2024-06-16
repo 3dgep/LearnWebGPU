@@ -15,6 +15,7 @@ if(EMSCRIPTEN)
 	PRIVATE
 		-sUSE_WEBGPU
 		-sASYNCIFY
+		-sALLOW_MEMORY_GROWTH
 	)
 	set_target_properties( ${TARGET_NAME}
 	PROPERTIES

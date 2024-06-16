@@ -7,6 +7,10 @@
 #include <webgpu/webgpu.h>
 #include <sdl2webgpu.h>
 
+#ifdef WEBGPU_BACKEND_WGPU
+#include <webgpu/wgpu.h> // Include non-standard functions.
+#endif
+
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -44,6 +48,7 @@ WGPUInstance instance = nullptr;
 WGPUDevice device = nullptr;
 WGPUQueue queue = nullptr;
 WGPUSurface surface = nullptr;
+WGPUSurfaceConfiguration surfaceConfiguration{};
 
 bool isRunning = true;
 
@@ -222,7 +227,7 @@ void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
 void init()
 {
     SDL_Init(SDL_INIT_VIDEO);
-    window = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    window = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
 
     if (!window)
     {
@@ -262,7 +267,7 @@ void init()
 
     surface = SDL_GetWGPUSurface(instance, window);
 
-    if(!surface)
+    if (!surface)
     {
         std::cerr << "Failed to get surface." << std::endl;
         return;
@@ -316,18 +321,125 @@ void init()
     wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr);
 
     // Configure the render surface.
-    WGPUSurfaceConfiguration config{};
-    config.device = device;
-    config.format = wgpuSurfaceGetPreferredFormat(surface, adapter);
-    config.usage = WGPUTextureUsage_RenderAttachment;
-    config.viewFormatCount = 0;
-    config.viewFormats = nullptr;
-    config.alphaMode = WGPUCompositeAlphaMode_Auto;
-    config.width = WINDOW_WIDTH;
-    config.height = WINDOW_HEIGHT;
-    config.presentMode = WGPUPresentMode_Mailbox;
-    wgpuSurfaceConfigure(surface, &config);
+    surfaceConfiguration.device = device;
+    surfaceConfiguration.format = wgpuSurfaceGetPreferredFormat(surface, adapter);
+    surfaceConfiguration.usage = WGPUTextureUsage_RenderAttachment;
+    surfaceConfiguration.viewFormatCount = 0;
+    surfaceConfiguration.viewFormats = nullptr;
+    surfaceConfiguration.alphaMode = WGPUCompositeAlphaMode_Auto;
+    surfaceConfiguration.width = WINDOW_WIDTH;
+    surfaceConfiguration.height = WINDOW_HEIGHT;
+    surfaceConfiguration.presentMode = WGPUPresentMode_Fifo; // This must be Fifo on Emscripten.
+    wgpuSurfaceConfigure(surface, &surfaceConfiguration);
+}
 
+WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
+{
+    WGPUSurfaceTexture surfaceTexture;
+    wgpuSurfaceGetCurrentTexture(s, &surfaceTexture);
+
+    switch (surfaceTexture.status)
+    {
+    case WGPUSurfaceGetCurrentTextureStatus_Success:
+        // All good. Just continue.
+        break;
+    case WGPUSurfaceGetCurrentTextureStatus_Timeout:
+    case WGPUSurfaceGetCurrentTextureStatus_Outdated:
+    case WGPUSurfaceGetCurrentTextureStatus_Lost:
+    {
+        // Reconfigure the texture and skip this frame.
+        if (surfaceTexture.texture)
+            wgpuTextureRelease(surfaceTexture.texture);
+
+        int width, height;
+        SDL_GetWindowSize(window, &width, &height);
+        if (width > 0 && height > 0)
+        {
+            surfaceConfiguration.width = width;
+            surfaceConfiguration.height = height;
+
+            wgpuSurfaceConfigure(surface, &surfaceConfiguration);
+        }
+        return nullptr;
+    }
+    default:
+        // Handle the error.
+        std::cerr << "Error getting surface texture: " << surfaceTexture.status << std::endl;
+        return nullptr;
+    }
+
+    WGPUTextureViewDescriptor viewDescriptor{};
+    viewDescriptor.label = "Surface texture view";
+    viewDescriptor.format = wgpuTextureGetFormat(surfaceTexture.texture);
+    viewDescriptor.dimension = WGPUTextureViewDimension_2D;
+    viewDescriptor.baseMipLevel = 0;
+    viewDescriptor.mipLevelCount = 1;
+    viewDescriptor.baseArrayLayer = 0;
+    viewDescriptor.arrayLayerCount = 1;
+    viewDescriptor.aspect = WGPUTextureAspect_All;
+    WGPUTextureView targetView = wgpuTextureCreateView(surfaceTexture.texture, &viewDescriptor);
+
+    return targetView;
+}
+
+void render()
+{
+    // Get the next texture view from the surface.
+    WGPUTextureView view = getNextSurfaceTextureView(surface);
+    if (!view)
+        return;
+
+    // Create a command encoder.
+    WGPUCommandEncoderDescriptor encoderDescriptor{};
+    encoderDescriptor.label = "Command Encoder";
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDescriptor);
+
+    // Create a render pass.
+    WGPURenderPassColorAttachment colorAttachment{};
+    colorAttachment.view = view;
+    colorAttachment.resolveTarget = nullptr;
+    colorAttachment.loadOp = WGPULoadOp_Clear;
+    colorAttachment.storeOp = WGPUStoreOp_Store;
+    colorAttachment.clearValue = WGPUColor{ 0.9f, 0.1f, 0.2f, 1.0f };
+#ifndef WEBGPU_BACKEND_WGPU
+    colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif
+
+    // Create the render pass.
+    WGPURenderPassDescriptor renderPassDescriptor{};
+    renderPassDescriptor.colorAttachmentCount = 1;
+    renderPassDescriptor.colorAttachments = &colorAttachment;
+    renderPassDescriptor.depthStencilAttachment = nullptr;
+    renderPassDescriptor.timestampWrites = nullptr;
+    WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
+
+    // End the render pass.
+    wgpuRenderPassEncoderEnd(renderPass);
+    wgpuRenderPassEncoderRelease(renderPass);
+
+    // Create a command buffer from the encoder.
+    WGPUCommandBufferDescriptor commandBufferDescriptor{};
+    commandBufferDescriptor.label = "Command Buffer";
+    WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, &commandBufferDescriptor);
+
+    // Submit the command buffer to command queue.
+    wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr);
+    wgpuQueueSubmit(queue, 1, &commandBuffer);
+
+    wgpuCommandBufferRelease(commandBuffer);
+    wgpuCommandEncoderRelease(encoder);
+    wgpuTextureViewRelease(view);
+#ifndef __EMSCRIPTEN__
+    // Do not present when using emscripten. This happens automatically.
+    wgpuSurfacePresent(surface);
+#endif
+
+    // Poll the device to check if the work is done.
+#if defined(WEBGPU_BACKEND_DAWN)
+    wgpuDeviceTick(device);
+#elif defined(WEBGPU_BACKEND_WGPU)
+    wgpuDevicePoll(device, false, nullptr);
+#endif
 }
 
 void update(void* userdata = nullptr)
@@ -351,11 +463,12 @@ void update(void* userdata = nullptr)
         }
     }
 
-
+    render();
 }
 
 void destroy()
 {
+    wgpuSurfaceUnconfigure(surface);
     wgpuSurfaceRelease(surface);
     wgpuQueueRelease(queue);
     wgpuDeviceRelease(device);
