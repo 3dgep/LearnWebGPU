@@ -54,7 +54,7 @@ struct Vertex
     glm::vec3 color;
 };
 
-static Vertex g_Vertices[8] = {
+static Vertex vertices[8] = {
     { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f} },  // 0
     { {-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f} },   // 1
     { {1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f} },    // 2
@@ -65,7 +65,7 @@ static Vertex g_Vertices[8] = {
     { {1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f} }     // 7
 };
 
-static uint16_t g_Indices[36] = {
+static uint16_t indices[36] = {
     0, 1, 2, 0, 2, 3,
     4, 6, 5, 4, 7, 6,
     4, 5, 1, 4, 1, 0,
@@ -74,7 +74,6 @@ static uint16_t g_Indices[36] = {
     4, 0, 3, 4, 3, 7
 };
 
-
 SDL_Window* window = nullptr;
 
 WGPUInstance instance = nullptr;
@@ -82,7 +81,9 @@ WGPUDevice device = nullptr;
 WGPUQueue queue = nullptr;
 WGPUSurface surface = nullptr;
 WGPUSurfaceConfiguration surfaceConfiguration{};
-WGPURenderPipeline pipeline;
+WGPURenderPipeline pipeline = nullptr;
+WGPUBuffer vertexBuffer = nullptr;
+WGPUBuffer indexBuffer = nullptr;
 
 bool isRunning = true;
 
@@ -352,6 +353,28 @@ void init()
         return;
     }
 
+    // Create the vertex buffer.
+    WGPUBufferDescriptor vertexBufferDescriptor{};
+    vertexBufferDescriptor.label = "Vertex Buffer";
+    vertexBufferDescriptor.size = sizeof(vertices);
+    vertexBufferDescriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+    vertexBufferDescriptor.mappedAtCreation = false;
+    vertexBuffer = wgpuDeviceCreateBuffer(device, &vertexBufferDescriptor);
+
+    // Upload vertex data to the vertex buffer.
+    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
+
+    // Create the index buffer
+    WGPUBufferDescriptor indexBufferDescriptor{};
+    indexBufferDescriptor.label = "Index Buffer";
+    indexBufferDescriptor.size = sizeof(indices);
+    indexBufferDescriptor.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
+    indexBufferDescriptor.mappedAtCreation = false;
+    indexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDescriptor);
+
+    // Upload index data to the index buffer.
+    wgpuQueueWriteBuffer(queue, indexBuffer, 0, indices, sizeof(indices));
+
     wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr);
 
     // Configure the render surface.
@@ -565,6 +588,8 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
+    wgpuBufferRelease(vertexBuffer);
+    wgpuBufferRelease(indexBuffer);
     wgpuRenderPipelineRelease(pipeline);
     wgpuSurfaceUnconfigure(surface);
     wgpuSurfaceRelease(surface);
