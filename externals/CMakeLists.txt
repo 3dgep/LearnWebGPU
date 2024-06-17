@@ -5,11 +5,17 @@ set( SDL_TEST OFF CACHE BOOL "Build the SDL2_test library." )
 set( SDL2_DISABLE_SDL2MAIN ON CACHE BOOL "Disable the SDLmain target." )
 set( SDL2_DISABLE_UNINSTALL ON CACHE BOOL "Disable the creation of an uninstall target." )
 
+add_subdirectory(glm)
 add_subdirectory(SDL)
 add_subdirectory(webgpu)
 add_subdirectory(sdl2webgpu)
 
-set_target_properties( SDL2-static sdl_headers_copy
+set_target_properties( SDL2-static sdl_headers_copy sdl2webgpu
 	PROPERTIES
 		FOLDER External/SDL2
+)
+
+set_target_properties( glm
+	PROPERTIES
+		FOLDER External/GLM
 )

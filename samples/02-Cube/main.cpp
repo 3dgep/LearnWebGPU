@@ -11,6 +11,8 @@
 #include <webgpu/wgpu.h> // Include non-standard functions.
 #endif
 
+#include <glm/vec3.hpp>
+
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -45,6 +47,33 @@ const char* WINDOW_TITLE = "Cube";
 const char* SHADER_MODULE = {
 #include "shader.wgsl"
 };
+
+struct Vertex
+{
+    glm::vec3 position;
+    glm::vec3 color;
+};
+
+static Vertex g_Vertices[8] = {
+    { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f} },  // 0
+    { {-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f} },   // 1
+    { {1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f} },    // 2
+    { {1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f} },   // 3
+    { {-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f} },   // 4
+    { {-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f} },    // 5
+    { {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f} },     // 6
+    { {1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f} }     // 7
+};
+
+static uint16_t g_Indices[36] = {
+    0, 1, 2, 0, 2, 3,
+    4, 6, 5, 4, 7, 6,
+    4, 5, 1, 4, 1, 0,
+    3, 2, 6, 3, 6, 7,
+    1, 5, 6, 1, 6, 2,
+    4, 0, 3, 4, 3, 7
+};
+
 
 SDL_Window* window = nullptr;
 
