@@ -203,7 +203,7 @@ void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
 {
     std::cerr << "Device lost: " << std::hex << reason << std::dec;
     if (message)
-        std::cerr << "(" << message << ")";
+        std::cerr << " (" << message << ")";
     std::cerr << std::endl;
 }
 
@@ -213,7 +213,7 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 {
     std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
     if (message)
-        std::cerr << "(" << message << ")";
+        std::cerr << " (" << message << ")";
     std::cerr << std::endl;
 }
 

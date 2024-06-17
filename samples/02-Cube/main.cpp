@@ -238,7 +238,7 @@ void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
 {
     std::cerr << "Device lost: " << std::hex << reason << std::dec;
     if (message)
-        std::cerr << "(" << message << ")";
+        std::cerr << " (" << message << ")";
     std::cerr << std::endl;
 }
 
@@ -248,7 +248,7 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 {
     std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
     if (message)
-        std::cerr << "(" << message << ")";
+        std::cerr << " (" << message << ")";
     std::cerr << std::endl;
 }
 
@@ -256,6 +256,38 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
 {
     std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
+}
+
+// Poll the GPU to allow work to be done on the device queue.
+void pollDevice(WGPUDevice _device, bool sleep = false)
+{
+#if defined(WEBGPU_BACKEND_DAWN)
+    wgpuDeviceTick(_device);
+#elif defined(WEBGPU_BACKEND_WGPU)
+    wgpuDevicePoll(_device, false, nullptr);
+#elif defined(WEBGPU_BACKEND_EMSCRIPTEN)
+    if (sleep)
+    {
+        emscripten_sleep(100);
+    }
+#endif
+}
+
+// Poll the queue until all work is done.
+void flushQueue()
+{
+    bool done = false;
+    wgpuQueueOnSubmittedWorkDone(queue, [](WGPUQueueWorkDoneStatus status, void* pDone)
+        {
+            std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
+            *static_cast<bool*>(pDone) = true;
+        }, &done
+    );
+
+    while (!done)
+    {
+        pollDevice(device, true);
+    }
 }
 
 // Initialize the application.
@@ -375,8 +407,6 @@ void init()
     // Upload index data to the index buffer.
     wgpuQueueWriteBuffer(queue, indexBuffer, 0, indices, sizeof(indices));
 
-    wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr);
-
     // Configure the render surface.
     WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(surface, adapter);
     surfaceConfiguration.device = device;
@@ -402,19 +432,35 @@ void init()
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDescriptor);
 
     // Set up the render pipeline.
-    WGPUBlendState blendState{}; // Alpha blended color.
-    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blendState.color.operation = WGPUBlendOperation_Add;
-    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blendState.alpha.dstFactor = WGPUBlendFactor_One;
-    blendState.alpha.operation = WGPUBlendOperation_Add;
 
+    // Describe the vertex layout.
+    WGPUVertexAttribute attributes[] = {
+        {
+            // glm::vec3 position;
+            .format = WGPUVertexFormat_Float32x3,
+            .offset = 0,
+            .shaderLocation = 0,
+        },
+        {
+            // glm::vec3 color;
+            .format = WGPUVertexFormat_Float32x3,
+            .offset = sizeof(glm::vec3),
+            .shaderLocation = 1,
+        }
+    };
+    WGPUVertexBufferLayout vertexBufferLayout{};
+    vertexBufferLayout.arrayStride = sizeof(Vertex);
+    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
+    vertexBufferLayout.attributeCount = std::size(attributes);
+    vertexBufferLayout.attributes = attributes;
+
+    // Setup the color targets.
     WGPUColorTargetState colorTargetState{};
     colorTargetState.format = surfaceFormat;
-    colorTargetState.blend = &blendState;
+    colorTargetState.blend = nullptr; // &blendState;
     colorTargetState.writeMask = WGPUColorWriteMask_All;
 
+    // Setup fragment shader stage.
     WGPUFragmentState fragmentState{};
     fragmentState.module = shaderModule;
     fragmentState.entryPoint = "fs_main";
@@ -424,19 +470,25 @@ void init()
     fragmentState.targets = &colorTargetState;
 
     WGPURenderPipelineDescriptor pipelineDescriptor{};
+
     // Primitive assembly.
     pipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     pipelineDescriptor.primitive.frontFace = WGPUFrontFace_CCW;
     pipelineDescriptor.primitive.cullMode = WGPUCullMode_None; // TODO: Change this to back.
     pipelineDescriptor.layout = nullptr; // TODO: Pipeline layout.
+
     // Vertex shader stage.
     pipelineDescriptor.vertex.module = shaderModule;
     pipelineDescriptor.vertex.entryPoint = "vs_main";
     pipelineDescriptor.vertex.constantCount = 0;
     pipelineDescriptor.vertex.constants = nullptr;
+    pipelineDescriptor.vertex.bufferCount = 1;
+    pipelineDescriptor.vertex.buffers = &vertexBufferLayout;
+
     // Fragment shader stage.
     pipelineDescriptor.fragment = &fragmentState;
+
     // Depth/Stencil state.
     pipelineDescriptor.depthStencil = nullptr; // TODO: Depth/stencil buffers.
     // Output stage.
@@ -531,7 +583,10 @@ void render()
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
 
     wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
-    wgpuRenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
+    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, sizeof(vertices));
+    wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, sizeof(indices));
+    //wgpuRenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
+    wgpuRenderPassEncoderDrawIndexed(renderPass, std::size(indices), 1, 0, 0, 0);
 
     // End the render pass.
     wgpuRenderPassEncoderEnd(renderPass);
@@ -555,11 +610,7 @@ void render()
 #endif
 
     // Poll the device to check if the work is done.
-#if defined(WEBGPU_BACKEND_DAWN)
-    wgpuDeviceTick(device);
-#elif defined(WEBGPU_BACKEND_WGPU)
-    wgpuDevicePoll(device, false, nullptr);
-#endif
+    pollDevice(device);
 }
 
 void update(void* userdata = nullptr)
