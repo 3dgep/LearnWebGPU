@@ -8,7 +8,18 @@
             "name": "01-ClearScreen",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/out/build/vs17/01-ClearScreen/Debug/01-ClearScreen.exe",
+            "program": "${workspaceRoot}/out/build/vs17/samples/01-ClearScreen/Debug/01-ClearScreen.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "02-Cube",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/out/build/vs17/samples/02-Cube/Debug/02-Cube.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
@@ -20,6 +31,13 @@
             "request": "launch",
             "name": "01-ClearScreen - Chrome",
             "url": "http://localhost:3000/out/build/emscripten/samples/01-ClearScreen/Debug/01-ClearScreen.html",
+            "preLaunchTask": "StartServer"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "02-Cube - Chrome",
+            "url": "http://localhost:3000/out/build/emscripten/samples/02-Cube/Debug/02-Cube.html",
             "preLaunchTask": "StartServer"
         },
     ]
