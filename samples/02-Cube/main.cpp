@@ -15,6 +15,7 @@
 
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp> // For matrix transformations.
 
 #include <cassert>
 #include <iostream>
@@ -85,8 +86,10 @@ WGPUQueue queue = nullptr;
 WGPUSurface surface = nullptr;
 WGPUSurfaceConfiguration surfaceConfiguration{};
 WGPURenderPipeline pipeline = nullptr;
+WGPUBindGroupLayout bindGroupLayout = nullptr;
 WGPUBuffer vertexBuffer = nullptr;
 WGPUBuffer indexBuffer = nullptr;
+WGPUBuffer mvpBuffer = nullptr;
 
 Timer timer;
 bool isRunning = true;
@@ -368,9 +371,6 @@ void init()
     deviceDescriptor.deviceLostCallback = onDeviceLost;
     device = requestDevice(adapter, &deviceDescriptor);
 
-    // We are done with the adapter, it is safe to release it.
-    wgpuAdapterRelease(adapter);
-
     if (!device)
     {
         std::cerr << "Failed to create device." << std::endl;
@@ -411,6 +411,15 @@ void init()
     // Upload index data to the index buffer.
     wgpuQueueWriteBuffer(queue, indexBuffer, 0, indices, indexBufferDescriptor.size);
 
+    // Create a uniform buffer to store the MVP matrix.
+    WGPUBufferDescriptor mvpBufferDescriptor{};
+    mvpBufferDescriptor.label = "MVP Buffer";
+    mvpBufferDescriptor.size = sizeof(glm::mat4);
+    mvpBufferDescriptor.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+    mvpBufferDescriptor.mappedAtCreation = false;
+    mvpBuffer = wgpuDeviceCreateBuffer(device, &mvpBufferDescriptor);
+    // We will write to the buffer in the render loop.
+
     // Configure the render surface.
     WGPUSurfaceCapabilities surfaceCapabilities{};
     wgpuSurfaceGetCapabilities(surface, adapter, &surfaceCapabilities);
@@ -440,6 +449,46 @@ void init()
 
     // Set up the render pipeline.
 
+    // Setup the color targets.
+    WGPUColorTargetState colorTargetState{};
+    colorTargetState.format = surfaceFormat;
+    colorTargetState.blend = nullptr; // &blendState;
+    colorTargetState.writeMask = WGPUColorWriteMask_All;
+
+    // Setup the binding layout.
+    // The binding group only requires a single entry:
+    // @group(0) @binding(0) var<uniform> mvp : mat4x4f;
+    // First, define the binding entry in the group:
+    WGPUBindGroupLayoutEntry bindGroupLayoutEntry{};
+    bindGroupLayoutEntry.binding = 0;
+    bindGroupLayoutEntry.visibility = WGPUShaderStage_Vertex;
+    bindGroupLayoutEntry.buffer.type = WGPUBufferBindingType_Uniform;
+    bindGroupLayoutEntry.buffer.minBindingSize = sizeof(glm::mat4);
+
+    // Setup the binding group.
+    WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor{};
+    bindGroupLayoutDescriptor.label = "Binding Group";
+    bindGroupLayoutDescriptor.entryCount = 1;
+    bindGroupLayoutDescriptor.entries = &bindGroupLayoutEntry;
+    bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDescriptor);
+
+    // Create the pipeline layout.
+    WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor{};
+    pipelineLayoutDescriptor.label = "Pipeline Layout";
+    pipelineLayoutDescriptor.bindGroupLayoutCount = 1;
+    pipelineLayoutDescriptor.bindGroupLayouts = &bindGroupLayout;
+    WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &pipelineLayoutDescriptor);
+
+    WGPURenderPipelineDescriptor pipelineDescriptor{};
+    pipelineDescriptor.label = "Render Pipeline";
+    pipelineDescriptor.layout = pipelineLayout;
+
+    // Primitive assembly.
+    pipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    pipelineDescriptor.primitive.frontFace = WGPUFrontFace_CCW;
+    pipelineDescriptor.primitive.cullMode = WGPUCullMode_Back;
+
     // Describe the vertex layout.
     WGPUVertexAttribute attributes[] = {
         {
@@ -461,30 +510,6 @@ void init()
     vertexBufferLayout.attributeCount = std::size(attributes);
     vertexBufferLayout.attributes = attributes;
 
-    // Setup the color targets.
-    WGPUColorTargetState colorTargetState{};
-    colorTargetState.format = surfaceFormat;
-    colorTargetState.blend = nullptr; // &blendState;
-    colorTargetState.writeMask = WGPUColorWriteMask_All;
-
-    // Setup fragment shader stage.
-    WGPUFragmentState fragmentState{};
-    fragmentState.module = shaderModule;
-    fragmentState.entryPoint = "fs_main";
-    fragmentState.constantCount = 0;
-    fragmentState.constants = nullptr;
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTargetState;
-
-    WGPURenderPipelineDescriptor pipelineDescriptor{};
-
-    // Primitive assembly.
-    pipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-    pipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    pipelineDescriptor.primitive.frontFace = WGPUFrontFace_CCW;
-    pipelineDescriptor.primitive.cullMode = WGPUCullMode_None; // TODO: Change this to back.
-    pipelineDescriptor.layout = nullptr; // TODO: Pipeline layout.
-
     // Vertex shader stage.
     pipelineDescriptor.vertex.module = shaderModule;
     pipelineDescriptor.vertex.entryPoint = "vs_main";
@@ -494,6 +519,13 @@ void init()
     pipelineDescriptor.vertex.buffers = &vertexBufferLayout;
 
     // Fragment shader stage.
+    WGPUFragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTargetState;
     pipelineDescriptor.fragment = &fragmentState;
 
     // Depth/Stencil state.
@@ -507,6 +539,12 @@ void init()
 
     // Release the shader module.
     wgpuShaderModuleRelease(shaderModule);
+
+    // Release the pipeline layout.
+    wgpuPipelineLayoutRelease(pipelineLayout);
+
+    // We are done with the adapter, it is safe to release it.
+    wgpuAdapterRelease(adapter);
 }
 
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
@@ -593,6 +631,23 @@ void render()
     wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
     wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, sizeof(vertices));
     wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, sizeof(indices));
+
+    // Bind the MVP uniform buffer.
+    WGPUBindGroupEntry binding{};
+    binding.binding = 0;
+    binding.buffer = mvpBuffer;
+    binding.offset = 0;
+    binding.size = sizeof(glm::mat4);
+
+    WGPUBindGroupDescriptor bindGroupDescriptor{};
+    bindGroupDescriptor.label = "Bind Group";
+    bindGroupDescriptor.layout = bindGroupLayout;
+    bindGroupDescriptor.entryCount = 1;
+    bindGroupDescriptor.entries = &binding;
+    WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(device, &bindGroupDescriptor);
+
+    wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, nullptr);
+
     wgpuRenderPassEncoderDrawIndexed(renderPass, std::size(indices), 1, 0, 0, 0);
 
     // End the render pass.
@@ -643,6 +698,17 @@ void update(void* userdata = nullptr)
 
     timer.tick();
 
+    // Update the model-view-projection matrix.
+    float angle = static_cast<float>( timer.totalSeconds() * 90.0 );
+    glm::vec3 axis = glm::vec3(0.0f, 1.0f, 1.0f);
+    glm::mat4 modelMatrix = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), axis);
+    glm::mat4 viewMatrix = glm::lookAt(glm::vec3{ 0, 0, -10 }, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 1, 0 });
+    glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), static_cast<float>(WINDOW_WIDTH) / static_cast<float>(WINDOW_HEIGHT), 0.1f, 100.0f);
+    glm::mat4 mvpMatrix = projectionMatrix * viewMatrix * modelMatrix;
+
+    // Update the MVP matrix in the uniform buffer.
+    wgpuQueueWriteBuffer(queue, mvpBuffer, 0, &mvpMatrix, sizeof(mvpMatrix));
+
     render();
 }
 
@@ -650,6 +716,8 @@ void destroy()
 {
     wgpuBufferRelease(vertexBuffer);
     wgpuBufferRelease(indexBuffer);
+    wgpuBufferRelease(mvpBuffer);
+    wgpuBindGroupLayoutRelease(bindGroupLayout);
     wgpuRenderPipelineRelease(pipeline);
     wgpuSurfaceUnconfigure(surface);
     wgpuSurfaceRelease(surface);
