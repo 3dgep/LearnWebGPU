@@ -84,6 +84,8 @@ WGPUInstance instance = nullptr;
 WGPUDevice device = nullptr;
 WGPUQueue queue = nullptr;
 WGPUSurface surface = nullptr;
+WGPUTexture depthTexture = nullptr;
+WGPUTextureView depthTextureView = nullptr;
 WGPUSurfaceConfiguration surfaceConfiguration{};
 WGPURenderPipeline pipeline = nullptr;
 WGPUBindGroupLayout bindGroupLayout = nullptr;
@@ -262,7 +264,7 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 // A callback function that is called when submitted work is done.
 void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
 {
-    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
+//    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
 }
 
 // Poll the GPU to allow work to be done on the device queue.
@@ -295,6 +297,52 @@ void flushQueue()
     {
         pollDevice(device, true);
     }
+}
+
+void onResize(int width, int height)
+{
+    if (depthTextureView)
+        wgpuTextureViewRelease(depthTextureView);
+
+    if (depthTexture)
+    {
+        wgpuTextureDestroy(depthTexture);
+        wgpuTextureRelease(depthTexture);
+    }
+
+    surfaceConfiguration.width = width;
+    surfaceConfiguration.height = height;
+    wgpuSurfaceConfigure(surface, &surfaceConfiguration);
+
+    // Create the depth texture.
+    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
+
+    WGPUTextureDescriptor depthTextureDescriptor{};
+    depthTextureDescriptor.label = "Depth Texture";
+    depthTextureDescriptor.usage = WGPUTextureUsage_RenderAttachment;
+    depthTextureDescriptor.dimension = WGPUTextureDimension_2D;
+    depthTextureDescriptor.size.width = WINDOW_WIDTH;
+    depthTextureDescriptor.size.height = WINDOW_HEIGHT;
+    depthTextureDescriptor.size.depthOrArrayLayers = 1;
+    depthTextureDescriptor.format = depthTextureFormat;
+    depthTextureDescriptor.mipLevelCount = 1;
+    depthTextureDescriptor.sampleCount = 1;
+    depthTextureDescriptor.viewFormatCount = 1;
+    depthTextureDescriptor.viewFormats = &depthTextureFormat;
+    depthTexture = wgpuDeviceCreateTexture(device, &depthTextureDescriptor);
+
+    // And create the depth texture view.
+    WGPUTextureViewDescriptor depthTextureViewDescriptor{};
+    depthTextureViewDescriptor.label = "Depth Texture View";
+    depthTextureViewDescriptor.format = depthTextureFormat;
+    depthTextureViewDescriptor.dimension = WGPUTextureViewDimension_2D;
+    depthTextureViewDescriptor.baseMipLevel = 0;
+    depthTextureViewDescriptor.mipLevelCount = 1;
+    depthTextureViewDescriptor.baseArrayLayer = 0;
+    depthTextureViewDescriptor.arrayLayerCount = 1;
+    depthTextureViewDescriptor.aspect = WGPUTextureAspect_DepthOnly;
+    depthTextureView = wgpuTextureCreateView(depthTexture, &depthTextureViewDescriptor);
+
 }
 
 // Initialize the application.
@@ -431,10 +479,10 @@ void init()
     surfaceConfiguration.viewFormatCount = 0;
     surfaceConfiguration.viewFormats = nullptr;
     surfaceConfiguration.alphaMode = WGPUCompositeAlphaMode_Auto;
-    surfaceConfiguration.width = WINDOW_WIDTH;
-    surfaceConfiguration.height = WINDOW_HEIGHT;
     surfaceConfiguration.presentMode = WGPUPresentMode_Fifo; // This must be Fifo on Emscripten.
-    wgpuSurfaceConfigure(surface, &surfaceConfiguration);
+
+    // Resize & configure the surface and depth buffer.
+    onResize(WINDOW_WIDTH, WINDOW_HEIGHT);
 
     // Load the shader module.
     WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
@@ -529,8 +577,13 @@ void init()
     pipelineDescriptor.fragment = &fragmentState;
 
     // Depth/Stencil state.
-    pipelineDescriptor.depthStencil = nullptr; // TODO: Depth/stencil buffers.
-    // Output stage.
+    WGPUDepthStencilState depthStencilState{};
+    depthStencilState.format = WGPUTextureFormat_Depth32Float;
+    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    pipelineDescriptor.depthStencil = &depthStencilState;
+
+    // Multisampling.
     pipelineDescriptor.multisample.count = 1;
     pipelineDescriptor.multisample.mask = ~0u; // All bits on.
     pipelineDescriptor.multisample.alphaToCoverageEnabled = false;
@@ -614,17 +667,28 @@ void render()
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = WGPULoadOp_Clear;
     colorAttachment.storeOp = WGPUStoreOp_Store;
-    colorAttachment.clearValue = WGPUColor{ 0.9f, 0.1f, 0.2f, 1.0f };
+    colorAttachment.clearValue = WGPUColor{ 0.4f, 0.6f, 0.9f, 1.0f };
 #ifndef WEBGPU_BACKEND_WGPU
     colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif
+
+    WGPURenderPassDepthStencilAttachment depthStencilAttachment{};
+    depthStencilAttachment.view = depthTextureView;
+    depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
+    depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
+    depthStencilAttachment.depthClearValue = 1.0f;
+    depthStencilAttachment.depthReadOnly = false;
+    depthStencilAttachment.stencilLoadOp = WGPULoadOp_Undefined;
+    depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Undefined;
+    depthStencilAttachment.stencilClearValue = 0;
+    depthStencilAttachment.stencilReadOnly = true;
 
     // Create the render pass.
     WGPURenderPassDescriptor renderPassDescriptor{};
     renderPassDescriptor.label = "Render Pass";
     renderPassDescriptor.colorAttachmentCount = 1;
     renderPassDescriptor.colorAttachments = &colorAttachment;
-    renderPassDescriptor.depthStencilAttachment = nullptr;
+    renderPassDescriptor.depthStencilAttachment = &depthStencilAttachment;
     renderPassDescriptor.timestampWrites = nullptr;
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
 
@@ -692,6 +756,13 @@ void update(void* userdata = nullptr)
                 isRunning = false;
             }
             break;
+        case SDL_WINDOWEVENT:
+            if (event.window.event == SDL_WINDOWEVENT_RESIZED)
+            {
+                std::cout << "Window resized: " << event.window.data1 << "x" << event.window.data2 << std::endl;
+                onResize(event.window.data1, event.window.data2);
+            }
+            break;
         default:;
         }
     }
@@ -699,7 +770,7 @@ void update(void* userdata = nullptr)
     timer.tick();
 
     // Update the model-view-projection matrix.
-    float angle = static_cast<float>( timer.totalSeconds() * 90.0 );
+    float angle = static_cast<float>(timer.totalSeconds() * 90.0);
     glm::vec3 axis = glm::vec3(0.0f, 1.0f, 1.0f);
     glm::mat4 modelMatrix = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), axis);
     glm::mat4 viewMatrix = glm::lookAt(glm::vec3{ 0, 0, -10 }, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 1, 0 });
@@ -719,6 +790,8 @@ void destroy()
     wgpuBufferRelease(mvpBuffer);
     wgpuBindGroupLayoutRelease(bindGroupLayout);
     wgpuRenderPipelineRelease(pipeline);
+    wgpuTextureRelease(depthTexture);
+    wgpuTextureViewRelease(depthTextureView);
     wgpuSurfaceUnconfigure(surface);
     wgpuSurfaceRelease(surface);
     wgpuQueueRelease(queue);
