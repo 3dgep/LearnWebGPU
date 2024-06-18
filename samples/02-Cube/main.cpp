@@ -11,7 +11,10 @@
 #include <webgpu/wgpu.h> // Include non-standard functions.
 #endif
 
+#include <Timer.hpp>
+
 #include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -85,6 +88,7 @@ WGPURenderPipeline pipeline = nullptr;
 WGPUBuffer vertexBuffer = nullptr;
 WGPUBuffer indexBuffer = nullptr;
 
+Timer timer;
 bool isRunning = true;
 
 WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions* options)
@@ -394,7 +398,7 @@ void init()
     vertexBuffer = wgpuDeviceCreateBuffer(device, &vertexBufferDescriptor);
 
     // Upload vertex data to the vertex buffer.
-    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
+    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, vertexBufferDescriptor.size);
 
     // Create the index buffer
     WGPUBufferDescriptor indexBufferDescriptor{};
@@ -405,10 +409,13 @@ void init()
     indexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDescriptor);
 
     // Upload index data to the index buffer.
-    wgpuQueueWriteBuffer(queue, indexBuffer, 0, indices, sizeof(indices));
+    wgpuQueueWriteBuffer(queue, indexBuffer, 0, indices, indexBufferDescriptor.size);
 
     // Configure the render surface.
-    WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(surface, adapter);
+    WGPUSurfaceCapabilities surfaceCapabilities{};
+    wgpuSurfaceGetCapabilities(surface, adapter, &surfaceCapabilities);
+    WGPUTextureFormat surfaceFormat = surfaceCapabilities.formats[0];
+
     surfaceConfiguration.device = device;
     surfaceConfiguration.format = surfaceFormat;
     surfaceConfiguration.usage = WGPUTextureUsage_RenderAttachment;
@@ -576,6 +583,7 @@ void render()
 
     // Create the render pass.
     WGPURenderPassDescriptor renderPassDescriptor{};
+    renderPassDescriptor.label = "Render Pass";
     renderPassDescriptor.colorAttachmentCount = 1;
     renderPassDescriptor.colorAttachments = &colorAttachment;
     renderPassDescriptor.depthStencilAttachment = nullptr;
@@ -585,7 +593,6 @@ void render()
     wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
     wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, sizeof(vertices));
     wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, sizeof(indices));
-    //wgpuRenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
     wgpuRenderPassEncoderDrawIndexed(renderPass, std::size(indices), 1, 0, 0, 0);
 
     // End the render pass.
@@ -633,6 +640,8 @@ void update(void* userdata = nullptr)
         default:;
         }
     }
+
+    timer.tick();
 
     render();
 }
