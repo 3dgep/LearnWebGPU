@@ -9,6 +9,7 @@ add_subdirectory(glm)
 add_subdirectory(SDL)
 add_subdirectory(webgpu)
 add_subdirectory(sdl2webgpu)
+add_subdirectory(tinyobjloader)
 
 set_target_properties( SDL2-static sdl_headers_copy sdl2webgpu
 	PROPERTIES
@@ -18,4 +19,9 @@ set_target_properties( SDL2-static sdl_headers_copy sdl2webgpu
 set_target_properties( glm
 	PROPERTIES
 		FOLDER External/GLM
+)
+
+set_target_properties( tinyobjloader
+	PROPERTIES
+		FOLDER External
 )

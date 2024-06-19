@@ -11,6 +11,8 @@
 #include <webgpu/wgpu.h> // Include non-standard functions.
 #endif
 
+#include <tiny_obj_loader.h>
+
 #include <Timer.hpp>
 
 #include <glm/vec3.hpp>
@@ -56,27 +58,342 @@ const char* SHADER_MODULE = {
 struct Vertex
 {
     glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec3 tangent;
+    glm::vec3 bitangent;
+    glm::vec3 texCoord;
     glm::vec3 color;
 };
 
-static Vertex vertices[8] = {
-    { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f} },  // 0
-    { {-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f} },   // 1
-    { {1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f} },    // 2
-    { {1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f} },   // 3
-    { {-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f} },   // 4
-    { {-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f} },    // 5
-    { {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f} },     // 6
-    { {1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f} }     // 7
+WGPUVertexAttribute vertexAttributes[] = {
+    {
+        // glm::vec3 position;
+        .format = WGPUVertexFormat_Float32x3,
+        .offset = offsetof(Vertex, position),
+        .shaderLocation = 0,
+    },
+    {
+        // glm::vec3 normal;
+        .format = WGPUVertexFormat_Float32x3,
+        .offset = offsetof(Vertex, normal),
+        .shaderLocation = 1,
+    },
+    {
+        // glm::vec3 tangent;
+        .format = WGPUVertexFormat_Float32x3,
+        .offset = offsetof(Vertex, tangent),
+        .shaderLocation = 2,
+    },
+    {
+        // glm::vec3 bitangent;
+        .format = WGPUVertexFormat_Float32x3,
+        .offset = offsetof(Vertex, bitangent),
+        .shaderLocation = 3,
+    },
+    {
+        // glm::vec3 texCoord;
+        .format = WGPUVertexFormat_Float32x3,
+        .offset = offsetof(Vertex, texCoord),
+        .shaderLocation = 4,
+    },
+    {
+        // glm::vec3 color;
+        .format = WGPUVertexFormat_Float32x3,
+        .offset = offsetof(Vertex, color),
+        .shaderLocation = 5,
+    }
 };
 
-static uint16_t indices[36] = {
-    0, 1, 2, 0, 2, 3,
-    4, 6, 5, 4, 7, 6,
-    4, 5, 1, 4, 1, 0,
-    3, 2, 6, 3, 6, 7,
-    1, 5, 6, 1, 6, 2,
-    4, 0, 3, 4, 3, 7
+struct Texture
+{
+    Texture() = default;
+    Texture(const Texture& _texture)
+    {
+        if (_texture.texture)
+        {
+            wgpuTextureAddRef(_texture.texture);
+            texture = _texture.texture;
+        }
+        if (_texture.textureView)
+        {
+            wgpuTextureViewAddRef(_texture.textureView);
+            textureView = _texture.textureView;
+        }
+    }
+
+    Texture(Texture&& _texture) noexcept
+    {
+        texture = _texture.texture;
+        _texture.texture = nullptr;
+
+        textureView = _texture.textureView;
+        _texture.textureView = nullptr;
+    }
+
+    ~Texture()
+    {
+        if (texture)
+            wgpuTextureRelease(texture);
+
+        if (textureView)
+            wgpuTextureViewRelease(textureView);
+    }
+
+    Texture& operator=(const Texture& _texture)
+    {
+        if (this == &_texture)
+            return *this;
+
+        if (texture)
+        {
+            wgpuTextureRelease(texture);
+            texture = nullptr;
+        }
+
+        if (textureView)
+        {
+            wgpuTextureViewRelease(textureView);
+            textureView = nullptr;
+        }
+
+        if (_texture.texture)
+        {
+            wgpuTextureAddRef(_texture.texture);
+            texture = _texture.texture;
+        }
+
+        if (_texture.textureView)
+        {
+            wgpuTextureViewAddRef(_texture.textureView);
+            textureView = _texture.textureView;
+        }
+
+        return *this;
+    }
+
+    Texture& operator=(Texture&& _texture) noexcept
+    {
+        if (this == &_texture)
+            return *this;
+
+        if (texture)
+        {
+            wgpuTextureRelease(texture);
+            texture = nullptr;
+        }
+
+        if (textureView)
+        {
+            wgpuTextureViewRelease(textureView);
+            textureView = nullptr;
+        }
+
+        texture = _texture.texture;
+        _texture.texture = nullptr;
+
+        textureView = _texture.textureView;
+        _texture.textureView = nullptr;
+
+        return *this;
+    }
+
+    void setTexture(const WGPUTexture& _texture)
+    {
+        if (texture)
+            wgpuTextureRelease(texture);
+
+        if (_texture)
+            wgpuTextureAddRef(_texture);
+
+        texture = _texture;
+    }
+
+    void setTexture(WGPUTexture&& _texture)
+    {
+        if (texture)
+            wgpuTextureRelease(texture);
+
+        texture = _texture;
+        _texture = nullptr;
+    }
+
+    WGPUTexture getTexture() const { return texture; }
+
+    void setTextureView(const WGPUTextureView& _textureView)
+    {
+        if (textureView)
+            wgpuTextureViewRelease(textureView);
+
+        if (_textureView)
+            wgpuTextureViewAddRef(_textureView);
+
+        textureView = _textureView;
+    }
+
+    void setTextureView(WGPUTextureView&& _textureView)
+    {
+        if (textureView)
+            wgpuTextureViewRelease(textureView);
+
+        textureView = _textureView;
+        _textureView = nullptr;
+    }
+
+    WGPUTextureView getTextureView() const { return textureView; }
+
+private:
+    WGPUTexture texture = nullptr;
+    WGPUTextureView textureView = nullptr;
+};
+
+struct Material
+{
+    glm::vec3 diffuseColor{ 1 };
+    glm::vec3 specularColor{ 0 };
+    glm::vec3 ambientColor{ 0 };
+    glm::vec3 emissiveColor{ 0 };
+    float specularPower = 256.0f;
+
+    Texture diffuseTexture;
+    Texture alphaTexture;
+    Texture specularTexture;
+    Texture normalTexture;
+    Texture ambientTexture;
+    Texture emissiveTexture;
+};
+
+struct Mesh
+{
+    Mesh() = default;
+
+    Mesh(const Mesh& mesh)
+    {
+        if (mesh.vertexBuffer)
+        {
+            wgpuBufferAddRef(mesh.vertexBuffer);
+            vertexBuffer = mesh.vertexBuffer;
+        }
+
+        if (mesh.indexBuffer)
+        {
+            wgpuBufferAddRef(mesh.indexBuffer);
+            indexBuffer = mesh.indexBuffer;
+        }
+
+        material = mesh.material;
+        indexCount = mesh.indexCount;
+    }
+
+    Mesh(Mesh&& mesh) noexcept
+    {
+        if (mesh.vertexBuffer)
+        {
+            vertexBuffer = mesh.vertexBuffer;
+            mesh.vertexBuffer = nullptr;
+        }
+
+        if (mesh.indexBuffer)
+        {
+            indexBuffer = mesh.indexBuffer;
+            mesh.indexBuffer = nullptr;
+        }
+
+        indexCount = mesh.indexCount;
+        mesh.indexCount = 0;
+
+        material = std::move(mesh.material);
+    }
+
+    ~Mesh()
+    {
+        if (vertexBuffer)
+        {
+            wgpuBufferRelease(vertexBuffer);
+        }
+
+        if (indexBuffer)
+        {
+            wgpuBufferRelease(indexBuffer);
+        }
+    }
+
+    Mesh& operator=(const Mesh& mesh)
+    {
+        if (this == &mesh)
+            return *this;
+
+        if (vertexBuffer)
+        {
+            wgpuBufferRelease(vertexBuffer);
+            vertexBuffer = nullptr;
+        }
+
+        if (indexBuffer)
+        {
+            wgpuBufferRelease(indexBuffer);
+            indexBuffer = nullptr;
+        }
+
+        if (mesh.vertexBuffer)
+        {
+            wgpuBufferAddRef(mesh.vertexBuffer);
+            vertexBuffer = mesh.vertexBuffer;
+        }
+
+        if (mesh.indexBuffer)
+        {
+            wgpuBufferAddRef(mesh.indexBuffer);
+            indexBuffer = mesh.indexBuffer;
+        }
+
+        material = mesh.material;
+        indexCount = mesh.indexCount;
+
+        return *this;
+    }
+
+    Mesh& operator=(Mesh&& mesh) noexcept
+    {
+        if (this == &mesh)
+            return *this;
+
+        if (vertexBuffer)
+        {
+            wgpuBufferRelease(vertexBuffer);
+            vertexBuffer = nullptr;
+        }
+
+        if (indexBuffer)
+        {
+            wgpuBufferRelease(indexBuffer);
+            indexBuffer = nullptr;
+        }
+
+        if (mesh.vertexBuffer)
+        {
+            vertexBuffer = mesh.vertexBuffer;
+            mesh.vertexBuffer = nullptr;
+        }
+
+        if (mesh.indexBuffer)
+        {
+            indexBuffer = mesh.indexBuffer;
+            mesh.indexBuffer = nullptr;
+        }
+
+        indexCount = mesh.indexCount;
+        mesh.indexCount = 0;
+
+        material = std::move(mesh.material);
+
+        return *this;
+    }
+
+    WGPUBuffer vertexBuffer = nullptr;
+    WGPUBuffer indexBuffer = nullptr;
+    uint32_t indexCount = 0;
+
+    Material material;
 };
 
 SDL_Window* window = nullptr;
@@ -129,7 +446,7 @@ WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions
     while (!userData.done)
     {
         emscripten_sleep(100);
-    }
+}
 #endif
 
     // The request must complete.
@@ -234,7 +551,7 @@ WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descri
     while (!userData.done)
     {
         emscripten_sleep(100);
-    }
+}
 #endif
 
     // The request must complete.
@@ -265,7 +582,7 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 // A callback function that is called when submitted work is done.
 void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
 {
-//    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
+    //    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
 }
 
 // Poll the GPU to allow work to be done on the device queue.
@@ -279,7 +596,7 @@ void pollDevice(WGPUDevice _device, bool sleep = false)
     if (sleep)
     {
         emscripten_sleep(100);
-    }
+}
 #endif
 }
 
@@ -351,7 +668,7 @@ void init()
 {
     // Try to load a file.
     std::ifstream testFile("assets/test.txt");
-    if(testFile.is_open())
+    if (testFile.is_open())
     {
         std::string s;
         while (!testFile.eof())
@@ -359,8 +676,8 @@ void init()
             testFile >> s;
             std::cout << s << " ";
         }
-        
-        std::cout << std::endl;        
+
+        std::cout << std::endl;
     }
 
     SDL_Init(SDL_INIT_VIDEO);
@@ -613,7 +930,7 @@ void init()
 
     // We are done with the adapter, it is safe to release it.
     wgpuAdapterRelease(adapter);
-}
+    }
 
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
 {

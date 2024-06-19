@@ -1,8 +1,13 @@
 R"(
+
 struct VertexIn
 {
-    @location(0) position: vec3f,
-    @location(1) color: vec3f,
+    @location(0) position : vec3f,
+    @location(1) normal : vec3f,
+    @location(2) tangent : vec3f,
+    @location(3) bitangent : vec3f,
+    @location(4) texCoord : vec3f,
+    @location(5) color : vec3f,
 };
 
 struct VertexOut
