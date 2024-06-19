@@ -10,6 +10,7 @@
 [submodule "externals/webgpu"]
 	path = externals/webgpu
 	url = https://github.com/eliemichel/WebGPU-distribution.git
+	ignore = dirty
 [submodule "externals/glm"]
 	path = externals/glm
 	url = https://github.com/g-truc/glm.git

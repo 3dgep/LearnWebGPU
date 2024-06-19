@@ -27,6 +27,17 @@
             "console": "externalTerminal"
         },
         {
+            "name": "03-Mesh",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/out/build/vs17/samples/03-Mesh/Debug/03-Mesh.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
             "type": "chrome",
             "request": "launch",
             "name": "01-ClearScreen - Chrome",
@@ -38,6 +49,13 @@
             "request": "launch",
             "name": "02-Cube - Chrome",
             "url": "http://localhost:3000/out/build/emscripten/samples/02-Cube/Debug/02-Cube.html",
+            "preLaunchTask": "StartServer"
+        },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "03-Mesh - Chrome",
+            "url": "http://localhost:3000/out/build/emscripten/samples/03-Mesh/Debug/03-Mesh.html",
             "preLaunchTask": "StartServer"
         },
     ]

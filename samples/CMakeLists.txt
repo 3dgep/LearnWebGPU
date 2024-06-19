@@ -1,21 +1,22 @@
 cmake_minimum_required(VERSION 3.27)
 
-add_subdirectory( 00-Common )
-add_subdirectory( 01-ClearScreen )
-add_subdirectory( 02-Cube )
-
-set( ALL_SAMPLES
+set( SAMPLES
 	00-Common
 	01-ClearScreen
 	02-Cube
+	03-Mesh
 )
 
-set_target_properties( ${ALL_SAMPLES}
+foreach( SAMPLE ${SAMPLES} )
+	add_subdirectory( ${SAMPLE} )
+endforeach()
+
+set_target_properties( ${SAMPLES}
     PROPERTIES
         FOLDER Samples
 )
 
 # Set the startup project.
 set_directory_properties( PROPERTIES 
-	VS_STARTUP_PROJECT 02-Cube
+	VS_STARTUP_PROJECT 03-Mesh
 )
