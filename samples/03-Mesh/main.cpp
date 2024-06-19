@@ -26,6 +26,27 @@
 #include <vector>
 #include <map>
 
+#ifdef WEBGPU_BACKEND_EMSCRIPTEN
+    void wgpuTextureAddRef(WGPUTexture texture)
+    {
+        wgpuTextureReference(texture);
+    }
+
+    void wgpuTextureViewAddRef(WGPUTextureView textureView)
+    {
+        wgpuTextureViewReference(textureView);
+    }
+
+    void wgpuBufferAddRef(WGPUBuffer buffer)
+    {
+        wgpuBufferReference(buffer);
+    }
+#endif
+
+#ifndef offsetof
+    #define offsetof(s,m) ((::size_t)&reinterpret_cast<char const volatile&>((((s*)0)->m)))
+#endif
+
 std::map<WGPUFeatureName, std::string> featureNames = {
     {WGPUFeatureName_DepthClipControl, "DepthClipControl"},
     {WGPUFeatureName_Depth32FloatStencil8, "Depth32FloatStencil8"},
