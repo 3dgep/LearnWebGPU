@@ -20,31 +20,33 @@
 #include <glm/gtc/matrix_transform.hpp> // For matrix transformations.
 
 #include <cassert>
+#include <cstddef>
+#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <map>
 
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    void wgpuTextureAddRef(WGPUTexture texture)
-    {
-        wgpuTextureReference(texture);
-    }
+#ifdef WEBGPU_BACKEND_DAWN
+void wgpuTextureReference(WGPUTexture texture)
+{
+    wgpuTextureAddRef(texture);
+}
 
-    void wgpuTextureViewAddRef(WGPUTextureView textureView)
-    {
-        wgpuTextureViewReference(textureView);
-    }
+void wgpuTextureViewReference(WGPUTextureView textureView)
+{
+    wgpuTextureViewAddRef(textureView);
+}
 
-    void wgpuBufferAddRef(WGPUBuffer buffer)
-    {
-        wgpuBufferReference(buffer);
-    }
+void wgpuBufferReference(WGPUBuffer buffer)
+{
+    wgpuBufferAddRef(buffer);
+}
 #endif
 
 #ifndef offsetof
-    #define offsetof(s,m) ((::size_t)&reinterpret_cast<char const volatile&>((((s*)0)->m)))
+#define offsetof(s,m) __builtin_offsetof(s, m)
 #endif
 
 std::map<WGPUFeatureName, std::string> featureNames = {
@@ -128,16 +130,31 @@ WGPUVertexAttribute vertexAttributes[] = {
 struct Texture
 {
     Texture() = default;
+
+    explicit Texture(const WGPUTexture& _texture)
+        : texture{ _texture }
+    {
+        wgpuTextureReference(_texture);
+        updateView();
+    }
+
+    explicit Texture(WGPUTexture&& _texture)
+        : texture{ _texture }
+    {
+        _texture = nullptr;
+        updateView();
+    }
+
     Texture(const Texture& _texture)
     {
         if (_texture.texture)
         {
-            wgpuTextureAddRef(_texture.texture);
+            wgpuTextureReference(_texture.texture);
             texture = _texture.texture;
         }
         if (_texture.textureView)
         {
-            wgpuTextureViewAddRef(_texture.textureView);
+            wgpuTextureViewReference(_texture.textureView);
             textureView = _texture.textureView;
         }
     }
@@ -179,13 +196,13 @@ struct Texture
 
         if (_texture.texture)
         {
-            wgpuTextureAddRef(_texture.texture);
+            wgpuTextureReference(_texture.texture);
             texture = _texture.texture;
         }
 
         if (_texture.textureView)
         {
-            wgpuTextureViewAddRef(_texture.textureView);
+            wgpuTextureViewReference(_texture.textureView);
             textureView = _texture.textureView;
         }
 
@@ -224,9 +241,11 @@ struct Texture
             wgpuTextureRelease(texture);
 
         if (_texture)
-            wgpuTextureAddRef(_texture);
+            wgpuTextureReference(_texture);
 
         texture = _texture;
+
+        updateView();
     }
 
     void setTexture(WGPUTexture&& _texture)
@@ -236,6 +255,8 @@ struct Texture
 
         texture = _texture;
         _texture = nullptr;
+
+        updateView();
     }
 
     WGPUTexture getTexture() const { return texture; }
@@ -246,7 +267,7 @@ struct Texture
             wgpuTextureViewRelease(textureView);
 
         if (_textureView)
-            wgpuTextureViewAddRef(_textureView);
+            wgpuTextureViewReference(_textureView);
 
         textureView = _textureView;
     }
@@ -263,6 +284,19 @@ struct Texture
     WGPUTextureView getTextureView() const { return textureView; }
 
 private:
+    void updateView()
+    {
+        if (textureView)
+        {
+            wgpuTextureViewRelease(textureView);
+            textureView = nullptr;
+        }
+
+        // Create a default view for the texture.
+        if (texture)
+            textureView = wgpuTextureCreateView(texture, nullptr);
+    }
+
     WGPUTexture texture = nullptr;
     WGPUTextureView textureView = nullptr;
 };
@@ -283,138 +317,127 @@ struct Material
     Texture emissiveTexture;
 };
 
+struct Buffer
+{
+    Buffer() = default;
+
+    explicit Buffer(const WGPUBuffer& _buffer)
+        : buffer{ _buffer }
+    {
+        wgpuBufferReference(_buffer);
+    }
+
+    explicit Buffer(WGPUBuffer&& _buffer)
+        : buffer{ _buffer }
+    {
+        _buffer = nullptr;
+    }
+
+    Buffer(const Buffer& _buffer)
+    {
+        if (_buffer.buffer)
+        {
+            wgpuBufferReference(_buffer.buffer);
+            buffer = _buffer.buffer;
+        }
+    }
+
+    Buffer(Buffer&& _buffer) noexcept
+    {
+        buffer = _buffer.buffer;
+        _buffer.buffer = nullptr;
+    }
+
+    ~Buffer()
+    {
+        if (buffer)
+            wgpuBufferRelease(buffer);
+    }
+
+    Buffer& operator=(const Buffer& _buffer)
+    {
+        if (this == &_buffer)
+            return *this;
+
+        if (buffer)
+        {
+            wgpuBufferRelease(buffer);
+            buffer = nullptr;
+        }
+
+        if (_buffer.buffer)
+        {
+            wgpuBufferReference(_buffer.buffer);
+            buffer = _buffer.buffer;
+        }
+
+        return *this;
+    }
+
+    Buffer& operator=(Buffer&& _buffer) noexcept
+    {
+        if (this == &_buffer)
+            return *this;
+
+        if (buffer)
+        {
+            wgpuBufferRelease(buffer);
+            buffer = nullptr;
+        }
+
+        buffer = _buffer.buffer;
+        _buffer.buffer = nullptr;
+
+        return *this;
+    }
+
+    void setBuffer(const WGPUBuffer& _buffer)
+    {
+        if (buffer)
+            wgpuBufferRelease(buffer);
+
+        if (_buffer)
+            wgpuBufferReference(_buffer);
+
+        buffer = _buffer;
+    }
+
+    void setBuffer(WGPUBuffer&& _buffer)
+    {
+        if (buffer)
+            wgpuBufferRelease(buffer);
+
+        buffer = _buffer;
+        _buffer = nullptr;
+    }
+
+    WGPUBuffer getBuffer() const { return buffer; }
+
+private:
+    WGPUBuffer buffer = nullptr;
+};
+
 struct Mesh
 {
-    Mesh() = default;
-
-    Mesh(const Mesh& mesh)
-    {
-        if (mesh.vertexBuffer)
-        {
-            wgpuBufferAddRef(mesh.vertexBuffer);
-            vertexBuffer = mesh.vertexBuffer;
-        }
-
-        if (mesh.indexBuffer)
-        {
-            wgpuBufferAddRef(mesh.indexBuffer);
-            indexBuffer = mesh.indexBuffer;
-        }
-
-        material = mesh.material;
-        indexCount = mesh.indexCount;
-    }
-
-    Mesh(Mesh&& mesh) noexcept
-    {
-        if (mesh.vertexBuffer)
-        {
-            vertexBuffer = mesh.vertexBuffer;
-            mesh.vertexBuffer = nullptr;
-        }
-
-        if (mesh.indexBuffer)
-        {
-            indexBuffer = mesh.indexBuffer;
-            mesh.indexBuffer = nullptr;
-        }
-
-        indexCount = mesh.indexCount;
-        mesh.indexCount = 0;
-
-        material = std::move(mesh.material);
-    }
-
-    ~Mesh()
-    {
-        if (vertexBuffer)
-        {
-            wgpuBufferRelease(vertexBuffer);
-        }
-
-        if (indexBuffer)
-        {
-            wgpuBufferRelease(indexBuffer);
-        }
-    }
-
-    Mesh& operator=(const Mesh& mesh)
-    {
-        if (this == &mesh)
-            return *this;
-
-        if (vertexBuffer)
-        {
-            wgpuBufferRelease(vertexBuffer);
-            vertexBuffer = nullptr;
-        }
-
-        if (indexBuffer)
-        {
-            wgpuBufferRelease(indexBuffer);
-            indexBuffer = nullptr;
-        }
-
-        if (mesh.vertexBuffer)
-        {
-            wgpuBufferAddRef(mesh.vertexBuffer);
-            vertexBuffer = mesh.vertexBuffer;
-        }
-
-        if (mesh.indexBuffer)
-        {
-            wgpuBufferAddRef(mesh.indexBuffer);
-            indexBuffer = mesh.indexBuffer;
-        }
-
-        material = mesh.material;
-        indexCount = mesh.indexCount;
-
-        return *this;
-    }
-
-    Mesh& operator=(Mesh&& mesh) noexcept
-    {
-        if (this == &mesh)
-            return *this;
-
-        if (vertexBuffer)
-        {
-            wgpuBufferRelease(vertexBuffer);
-            vertexBuffer = nullptr;
-        }
-
-        if (indexBuffer)
-        {
-            wgpuBufferRelease(indexBuffer);
-            indexBuffer = nullptr;
-        }
-
-        if (mesh.vertexBuffer)
-        {
-            vertexBuffer = mesh.vertexBuffer;
-            mesh.vertexBuffer = nullptr;
-        }
-
-        if (mesh.indexBuffer)
-        {
-            indexBuffer = mesh.indexBuffer;
-            mesh.indexBuffer = nullptr;
-        }
-
-        indexCount = mesh.indexCount;
-        mesh.indexCount = 0;
-
-        material = std::move(mesh.material);
-
-        return *this;
-    }
-
-    WGPUBuffer vertexBuffer = nullptr;
-    WGPUBuffer indexBuffer = nullptr;
+    Buffer vertexBuffer;
+    Buffer indexBuffer;
     uint32_t indexCount = 0;
 
     Material material;
+};
+
+struct Model
+{
+    Model() = default;
+
+    explicit Model(const std::filesystem::path& path)
+    {
+        load(path);
+    }
+
+    bool load(const std::filesystem::path& path); // TODO:
+
+    std::vector<Mesh> meshes;
 };
 
 SDL_Window* window = nullptr;
@@ -467,14 +490,14 @@ WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions
     while (!userData.done)
     {
         emscripten_sleep(100);
-}
+    }
 #endif
 
     // The request must complete.
     assert(userData.done);
 
     return userData.adapter;
-}
+        }
 
 void inspectAdapter(WGPUAdapter adapter)
 {
@@ -572,14 +595,14 @@ WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descri
     while (!userData.done)
     {
         emscripten_sleep(100);
-}
+    }
 #endif
 
     // The request must complete.
     assert(userData.done);
 
     return userData.device;
-}
+        }
 
 // A callback function that is called when the GPU device is no longer available for some reason.
 void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
@@ -617,7 +640,7 @@ void pollDevice(WGPUDevice _device, bool sleep = false)
     if (sleep)
     {
         emscripten_sleep(100);
-}
+    }
 #endif
 }
 
@@ -951,7 +974,7 @@ void init()
 
     // We are done with the adapter, it is safe to release it.
     wgpuAdapterRelease(adapter);
-    }
+}
 
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
 {
