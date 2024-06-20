@@ -6,8 +6,8 @@ struct VertexIn
     @location(1) normal : vec3f,
     @location(2) tangent : vec3f,
     @location(3) bitangent : vec3f,
-    @location(4) texCoord : vec3f,
-    @location(5) color : vec3f,
+    @location(4) color : vec3f,
+    @location(5) texCoord : vec2f,
 };
 
 struct VertexOut

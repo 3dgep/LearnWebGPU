@@ -84,8 +84,8 @@ struct Vertex
     glm::vec3 normal;
     glm::vec3 tangent;
     glm::vec3 bitangent;
-    glm::vec3 texCoord;
     glm::vec3 color;
+    glm::vec2 texCoord;
 };
 
 WGPUVertexAttribute vertexAttributes[] = {
@@ -114,17 +114,17 @@ WGPUVertexAttribute vertexAttributes[] = {
         .shaderLocation = 3,
     },
     {
-        // glm::vec3 texCoord;
-        .format = WGPUVertexFormat_Float32x3,
-        .offset = offsetof(Vertex, texCoord),
-        .shaderLocation = 4,
-    },
-    {
         // glm::vec3 color;
         .format = WGPUVertexFormat_Float32x3,
         .offset = offsetof(Vertex, color),
+        .shaderLocation = 4,
+    },
+    {
+        // glm::vec3 texCoord;
+        .format = WGPUVertexFormat_Float32x2,
+        .offset = offsetof(Vertex, texCoord),
         .shaderLocation = 5,
-    }
+    },
 };
 
 struct Texture
@@ -451,9 +451,6 @@ WGPUTextureView depthTextureView = nullptr;
 WGPUSurfaceConfiguration surfaceConfiguration{};
 WGPURenderPipeline pipeline = nullptr;
 WGPUBindGroupLayout bindGroupLayout = nullptr;
-WGPUBuffer vertexBuffer = nullptr;
-WGPUBuffer indexBuffer = nullptr;
-WGPUBuffer mvpBuffer = nullptr;
 
 Timer timer;
 bool isRunning = true;
@@ -497,7 +494,7 @@ WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions
     assert(userData.done);
 
     return userData.adapter;
-        }
+}
 
 void inspectAdapter(WGPUAdapter adapter)
 {
@@ -602,7 +599,7 @@ WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descri
     assert(userData.done);
 
     return userData.device;
-        }
+}
 
 // A callback function that is called when the GPU device is no longer available for some reason.
 void onDeviceLost(WGPUDeviceLostReason reason, char const* message, void*)
@@ -707,6 +704,72 @@ void onResize(int width, int height)
 
 }
 
+Model loadModel(const std::filesystem::path& modelFile)
+{
+    Model model;
+
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    std::string warn;
+    std::string err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelFile.string().c_str()))
+    {
+        std::cerr << "Failed to load model: " << modelFile << std::endl;
+        return model;
+    }
+
+    for (const auto& shape : shapes)
+    {
+        Mesh mesh;
+
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
+
+        for (const auto& index : shape.mesh.indices)
+        {
+            Vertex vertex{};
+
+            vertex.position = {
+                attrib.vertices[3 * index.vertex_index + 0],
+                attrib.vertices[3 * index.vertex_index + 1],
+                attrib.vertices[3 * index.vertex_index + 2]
+            };
+
+            if (index.normal_index >= 0)
+            {
+                vertex.normal = {
+                    attrib.normals[3 * index.normal_index + 0],
+                    attrib.normals[3 * index.normal_index + 1],
+                    attrib.normals[3 * index.normal_index + 2]
+                };
+            }
+
+            if (index.texcoord_index >= 0)
+            {
+                vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    attrib.texcoords[2 * index.texcoord_index + 1],
+                };
+            }
+
+            vertices.push_back(vertex);
+            indices.push_back(static_cast<uint32_t>(indices.size()));
+        }
+
+        mesh.vertexBuffer = Buffer(wgpuCreateBufferFromData(device, vertices.data(), vertices.size() * sizeof(Vertex), WGPUBufferUsage_Vertex));
+        mesh.indexBuffer = Buffer(wgpuCreateBufferFromData(device, indices.data(), indices.size() * sizeof(uint32_t), WGPUBufferUsage_Index));
+        mesh.indexCount = static_cast<uint32_t>(indices.size());
+
+        model.meshes.push_back(mesh);
+    }
+
+    return model;
+
+}
+
 // Initialize the application.
 void init()
 {
@@ -786,7 +849,7 @@ void init()
 
     // Create a minimal device with no special features and default limits.
     WGPUDeviceDescriptor deviceDescriptor{};
-    deviceDescriptor.label = "LearnWebGPU"; // You can use anything here.
+    deviceDescriptor.label = "Device";  // This will be shown in error messages and in a graphics debugger.
     deviceDescriptor.requiredFeatureCount = 0; // We don't require any extra features.
     deviceDescriptor.requiredFeatures = nullptr;
     deviceDescriptor.requiredLimits = nullptr; // We don't require any specific limits.

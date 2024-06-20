@@ -400,7 +400,7 @@ void render()
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = WGPULoadOp_Clear;
     colorAttachment.storeOp = WGPUStoreOp_Store;
-    colorAttachment.clearValue = WGPUColor{ 0.9f, 0.1f, 0.2f, 1.0f };
+    colorAttachment.clearValue = WGPUColor{ 0.4f, 0.6f, 0.9f, 1.0f };
 #ifndef WEBGPU_BACKEND_WGPU
     colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif
