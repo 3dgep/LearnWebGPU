@@ -9,6 +9,7 @@ add_subdirectory(glm)
 add_subdirectory(SDL)
 add_subdirectory(webgpu)
 add_subdirectory(sdl2webgpu)
+add_subdirectory(stb)
 add_subdirectory(tinyobjloader)
 
 set_target_properties( SDL2-static sdl_headers_copy sdl2webgpu
@@ -25,3 +26,16 @@ set_target_properties( tinyobjloader
 	PROPERTIES
 		FOLDER External
 )
+
+set( stb_targets
+	stb_dxt
+	stb_image
+	stb_image_resize
+	stb_image_write
+)
+
+foreach( stb_target ${stb_targets} )
+	if( TARGET ${stb_target} )
+		set_target_properties( ${stb_target} PROPERTIES FOLDER External/stb )			
+	endif()
+endforeach()

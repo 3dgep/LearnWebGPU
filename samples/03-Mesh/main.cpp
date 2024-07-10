@@ -7,6 +7,8 @@
 #include <webgpu/webgpu.h>
 #include <sdl2webgpu.h>
 
+#include <stb_image.h>
+
 #ifdef WEBGPU_BACKEND_WGPU
 #include <webgpu/wgpu.h> // Include non-standard functions.
 #endif
@@ -131,6 +133,11 @@ struct Texture
 {
     Texture() = default;
 
+    Texture(const std::filesystem::path& path)
+    {
+        load(path);
+    }
+
     explicit Texture(const WGPUTexture& _texture)
         : texture{ _texture }
     {
@@ -176,6 +183,8 @@ struct Texture
         if (textureView)
             wgpuTextureViewRelease(textureView);
     }
+
+    bool load(const std::filesystem::path& fileName);
 
     Texture& operator=(const Texture& _texture)
     {
@@ -435,7 +444,7 @@ struct Model
         load(path);
     }
 
-    bool load(const std::filesystem::path& path); // TODO:
+    bool load(const std::filesystem::path& path);
 
     std::vector<Mesh> meshes;
 };
@@ -454,6 +463,50 @@ WGPUBindGroupLayout bindGroupLayout = nullptr;
 
 Timer timer;
 bool isRunning = true;
+
+bool Texture::load(const std::filesystem::path& fileName)
+{
+    if (texture)
+        wgpuTextureRelease(texture);
+
+    if (textureView)
+        wgpuTextureViewRelease(textureView);
+
+    int x, y, n;
+    unsigned char* data = stbi_load(fileName.string().c_str(), &x, &y, &n, STBI_rgb_alpha);
+    if (!data)
+    {
+        std::cerr << "Failed to load texture: " << fileName << std::endl;
+        return false;
+    }
+
+    WGPUTextureDescriptor textureDescriptor{};
+    textureDescriptor.dimension = WGPUTextureDimension_2D;
+    textureDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    textureDescriptor.mipLevelCount = 1;
+    textureDescriptor.sampleCount = 1;
+    textureDescriptor.size = { static_cast<uint32_t>(x), static_cast<uint32_t>(y), 1 };
+    textureDescriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
+    texture = wgpuDeviceCreateTexture(device, &textureDescriptor);
+
+    WGPUImageCopyTexture destination{};
+    destination.texture = texture;
+    destination.mipLevel = 0;
+    destination.origin = { 0, 0, 0 };
+    destination.aspect = WGPUTextureAspect_All;
+
+    WGPUTextureDataLayout source{};
+    source.bytesPerRow = textureDescriptor.size.width * 4u;
+    source.rowsPerImage = textureDescriptor.size.height;
+
+    wgpuQueueWriteTexture(queue, &destination, data, static_cast<size_t>(4 * textureDescriptor.size.width * textureDescriptor.size.height), &source, &textureDescriptor.size);
+
+    updateView();
+
+    stbi_image_free(data);
+
+    return true;
+}
 
 WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions* options)
 {
@@ -476,9 +529,9 @@ WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions
             else
             {
                 std::cerr << "Failed to request adapter: " << message << std::endl;
-            }
+        }
             data.done = true;
-        };
+};
 
     wgpuInstanceRequestAdapter(instance, options, requestAdapterCallback, &userData);
 
@@ -552,7 +605,7 @@ void inspectAdapter(WGPUAdapter adapter)
     // Allocate memory to store the resulting features.
     features.resize(featureCount);
 
-    // Enumerate again, now with the allocated to store the features.
+    // Enumerate again, now with the allocated memory to store the features.
     wgpuAdapterEnumerateFeatures(adapter, features.data());
 
     std::cout << "Adapter features: " << std::endl;
@@ -581,9 +634,9 @@ WGPUDevice requestDevice(WGPUAdapter adapter, const WGPUDeviceDescriptor* descri
             else
             {
                 std::cerr << "Failed to request device: " << message << std::endl;
-            }
+        }
             data.done = true;
-        };
+};
 
     wgpuAdapterRequestDevice(adapter, descriptor, requestDeviceCallback, &userData);
 
@@ -704,10 +757,8 @@ void onResize(int width, int height)
 
 }
 
-Model loadModel(const std::filesystem::path& modelFile)
+bool Model::load(const std::filesystem::path& modelFile)
 {
-    Model model;
-
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -718,7 +769,7 @@ Model loadModel(const std::filesystem::path& modelFile)
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, modelFile.string().c_str()))
     {
         std::cerr << "Failed to load model: " << modelFile << std::endl;
-        return model;
+        return false;
     }
 
     for (const auto& shape : shapes)
@@ -759,15 +810,14 @@ Model loadModel(const std::filesystem::path& modelFile)
             indices.push_back(static_cast<uint32_t>(indices.size()));
         }
 
-        mesh.vertexBuffer = Buffer(wgpuCreateBufferFromData(device, vertices.data(), vertices.size() * sizeof(Vertex), WGPUBufferUsage_Vertex));
-        mesh.indexBuffer = Buffer(wgpuCreateBufferFromData(device, indices.data(), indices.size() * sizeof(uint32_t), WGPUBufferUsage_Index));
+        //mesh.vertexBuffer = Buffer{ wgpuCreateBufferFromData(device, vertices.data(), vertices.size() * sizeof(Vertex), WGPUBufferUsage_Vertex) };
+        //mesh.indexBuffer = Buffer{ wgpuCreateBufferFromData(device, indices.data(), indices.size() * sizeof(uint32_t), WGPUBufferUsage_Index) };
         mesh.indexCount = static_cast<uint32_t>(indices.size());
 
-        model.meshes.push_back(mesh);
+        meshes.push_back(mesh);
     }
 
-    return model;
-
+    return true;
 }
 
 // Initialize the application.
@@ -875,37 +925,6 @@ void init()
         std::cerr << "Failed to get device queue." << std::endl;
         return;
     }
-
-    // Create the vertex buffer.
-    WGPUBufferDescriptor vertexBufferDescriptor{};
-    vertexBufferDescriptor.label = "Vertex Buffer";
-    vertexBufferDescriptor.size = sizeof(vertices);
-    vertexBufferDescriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
-    vertexBufferDescriptor.mappedAtCreation = false;
-    vertexBuffer = wgpuDeviceCreateBuffer(device, &vertexBufferDescriptor);
-
-    // Upload vertex data to the vertex buffer.
-    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, vertexBufferDescriptor.size);
-
-    // Create the index buffer
-    WGPUBufferDescriptor indexBufferDescriptor{};
-    indexBufferDescriptor.label = "Index Buffer";
-    indexBufferDescriptor.size = sizeof(indices);
-    indexBufferDescriptor.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
-    indexBufferDescriptor.mappedAtCreation = false;
-    indexBuffer = wgpuDeviceCreateBuffer(device, &indexBufferDescriptor);
-
-    // Upload index data to the index buffer.
-    wgpuQueueWriteBuffer(queue, indexBuffer, 0, indices, indexBufferDescriptor.size);
-
-    // Create a uniform buffer to store the MVP matrix.
-    WGPUBufferDescriptor mvpBufferDescriptor{};
-    mvpBufferDescriptor.label = "MVP Buffer";
-    mvpBufferDescriptor.size = sizeof(glm::mat4);
-    mvpBufferDescriptor.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
-    mvpBufferDescriptor.mappedAtCreation = false;
-    mvpBuffer = wgpuDeviceCreateBuffer(device, &mvpBufferDescriptor);
-    // We will write to the buffer in the render loop.
 
     // Configure the render surface.
     WGPUSurfaceCapabilities surfaceCapabilities{};
@@ -1037,7 +1056,7 @@ void init()
 
     // We are done with the adapter, it is safe to release it.
     wgpuAdapterRelease(adapter);
-}
+    }
 
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
 {
@@ -1132,13 +1151,13 @@ void render()
     WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDescriptor);
 
     wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
-    wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, sizeof(vertices));
-    wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, sizeof(indices));
+    //wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, sizeof(vertices));
+    //wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, sizeof(indices));
 
     // Bind the MVP uniform buffer.
     WGPUBindGroupEntry binding{};
     binding.binding = 0;
-    binding.buffer = mvpBuffer;
+    //    binding.buffer = mvpBuffer;
     binding.offset = 0;
     binding.size = sizeof(glm::mat4);
 
@@ -1151,7 +1170,7 @@ void render()
 
     wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, nullptr);
 
-    wgpuRenderPassEncoderDrawIndexed(renderPass, std::size(indices), 1, 0, 0, 0);
+    //wgpuRenderPassEncoderDrawIndexed(renderPass, std::size(indices), 1, 0, 0, 0);
 
     // End the render pass.
     wgpuRenderPassEncoderEnd(renderPass);
@@ -1217,16 +1236,16 @@ void update(void* userdata = nullptr)
     glm::mat4 mvpMatrix = projectionMatrix * viewMatrix * modelMatrix;
 
     // Update the MVP matrix in the uniform buffer.
-    wgpuQueueWriteBuffer(queue, mvpBuffer, 0, &mvpMatrix, sizeof(mvpMatrix));
+    //wgpuQueueWriteBuffer(queue, mvpBuffer, 0, &mvpMatrix, sizeof(mvpMatrix));
 
     render();
 }
 
 void destroy()
 {
-    wgpuBufferRelease(vertexBuffer);
-    wgpuBufferRelease(indexBuffer);
-    wgpuBufferRelease(mvpBuffer);
+    //wgpuBufferRelease(vertexBuffer);
+    //wgpuBufferRelease(indexBuffer);
+    //wgpuBufferRelease(mvpBuffer);
     wgpuBindGroupLayoutRelease(bindGroupLayout);
     wgpuRenderPipelineRelease(pipeline);
     wgpuTextureRelease(depthTexture);
