@@ -52,7 +52,6 @@ There are several launch & tasks configurations to simplify debugging the applic
 #### Recommended Visual Studio Code Extensions
 
 This project includes an [extensions.json](.vscode/extensions.json) file for Visual Studio Code.
-These extensions are helpful for 
 
 * C/C++ for Visual Studio Code
 * CMake Tools
@@ -73,3 +72,9 @@ cd tools/emsdk
 ```
 
 ## Building
+
+## Known Issues
+
+* When using the Dawn WebGPU backend, the `fetch_dawn_dependencies.py` script can fail in cmake-gui with the error `OSError: [WinError 6] The handle is invalid`.
+  * Solution: run cmake on the command line:
+    * `cmake --preset vs17 -D WEBGPU_BACKEND=DAWN`
