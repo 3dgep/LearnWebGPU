@@ -55,6 +55,10 @@ const char* SHADER_MODULE = {
 #include "shader.wgsl"
 };
 
+const char* GENERATE_MIPS_MODULE = {
+#include "generateMips.wgsl"
+};
+
 struct Vertex
 {
     glm::vec3 position;
@@ -81,6 +85,15 @@ static uint16_t indices[36] = {
     4, 0, 3, 4, 3, 7
 };
 
+struct Mip
+{
+    uint32_t srcMipLevel = 0;
+    uint32_t numMips = 0;
+    uint32_t dimensions = 0;
+    uint32_t isSRGB = 0;
+    glm::vec2 texelSize{0};
+};
+
 SDL_Window* window = nullptr;
 
 WGPUInstance instance = nullptr;
@@ -91,6 +104,8 @@ WGPUTexture depthTexture = nullptr;
 WGPUTextureView depthTextureView = nullptr;
 WGPUSurfaceConfiguration surfaceConfiguration{};
 WGPURenderPipeline pipeline = nullptr;
+WGPUComputePipeline generateMipsPipeline = nullptr;
+WGPUBindGroupLayout generateMipsBindGroupLayout = nullptr;
 WGPUBindGroupLayout bindGroupLayout = nullptr;
 WGPUBuffer vertexBuffer = nullptr;
 WGPUBuffer indexBuffer = nullptr;
@@ -491,11 +506,6 @@ void init()
         return;
     }
 
-    // Load the texture
-    texture = loadTexture("assets/textures/webgpu.png");
-    // Create a default view of the texture.
-    textureView = wgpuTextureCreateView(texture, nullptr);
-
     // Create the vertex buffer.
     WGPUBufferDescriptor vertexBufferDescriptor{};
     vertexBufferDescriptor.label = "Vertex Buffer";
@@ -562,7 +572,7 @@ void init()
     colorTargetState.blend = nullptr; // &blendState;
     colorTargetState.writeMask = WGPUColorWriteMask_All;
 
-    // Setup the binding layout.
+    // Setup the binding layout for the renderer.
     // The binding group only requires a single entry:
     // @group(0) @binding(0) var<uniform> mvp : mat4x4f;
     // First, define the binding entry in the group:
@@ -655,9 +665,131 @@ void init()
     // Release the pipeline layout.
     wgpuPipelineLayoutRelease(pipelineLayout);
 
+    // Setup the binding layout for the generate mips compute shader.
+    //@group(0) @binding(0) var<uniform> mip : Mip;
+    //@group(0) @binding(1) var srcMip : texture_2d<f32>;
+    //@group(0) @binding(2) var dstMip1 : texture_storage_2d<rgba8unorm, write>;
+    //@group(0) @binding(3) var dstMip2 : texture_storage_2d<rgba8unorm, write>;
+    //@group(0) @binding(4) var dstMip3 : texture_storage_2d<rgba8unorm, write>;
+    //@group(0) @binding(5) var dstMip4 : texture_storage_2d<rgba8unorm, write>;
+    //@group(0) @binding(6) var linearClampSampler : sampler;
+    WGPUBindGroupLayoutEntry generateMipsBindGroupLayoutEntries[] = {
+        {
+            .nextInChain = nullptr,
+            .binding = 0,
+            .visibility = WGPUShaderStage_Compute,
+            .buffer = {
+                .type = WGPUBufferBindingType_Uniform,
+                .minBindingSize = sizeof(Mip)
+            },
+        },
+        {
+            .nextInChain = nullptr,
+            .binding = 1,
+            .visibility = WGPUShaderStage_Compute,
+            .texture = {
+                .nextInChain = nullptr,
+                .sampleType = WGPUTextureSampleType_Float,
+                .viewDimension = WGPUTextureViewDimension_2D,
+            },
+        },
+        {
+            .nextInChain = nullptr,
+            .binding = 2,
+            .visibility = WGPUShaderStage_Compute,
+            .storageTexture = {
+                .nextInChain = nullptr,
+                .access = WGPUStorageTextureAccess_WriteOnly,
+                .format = WGPUTextureFormat_RGBA8Unorm,
+                .viewDimension = WGPUTextureViewDimension_2D,
+            },
+        },
+        {
+            .nextInChain = nullptr,
+            .binding = 3,
+            .visibility = WGPUShaderStage_Compute,
+            .storageTexture = {
+                .nextInChain = nullptr,
+                .access = WGPUStorageTextureAccess_WriteOnly,
+                .format = WGPUTextureFormat_RGBA8Unorm,
+                .viewDimension = WGPUTextureViewDimension_2D,
+            },
+        },
+        {
+            .nextInChain = nullptr,
+            .binding = 4,
+            .visibility = WGPUShaderStage_Compute,
+            .storageTexture = {
+                .nextInChain = nullptr,
+                .access = WGPUStorageTextureAccess_WriteOnly,
+                .format = WGPUTextureFormat_RGBA8Unorm,
+                .viewDimension = WGPUTextureViewDimension_2D,
+            },
+        },
+        {
+            .nextInChain = nullptr,
+            .binding = 5,
+            .visibility = WGPUShaderStage_Compute,
+            .storageTexture = {
+                .nextInChain = nullptr,
+                .access = WGPUStorageTextureAccess_WriteOnly,
+                .format = WGPUTextureFormat_RGBA8Unorm,
+                .viewDimension = WGPUTextureViewDimension_2D,
+            },
+        },
+        {
+            .nextInChain = nullptr,
+            .binding = 6,
+            .visibility = WGPUShaderStage_Compute,
+            .sampler = {
+                .nextInChain = nullptr,
+                .type = WGPUSamplerBindingType_Filtering
+            },
+        },
+    };
+
+    // Setup the binding group layout.
+    WGPUBindGroupLayoutDescriptor generateMipsBindGroupLayoutDescriptor{};
+    generateMipsBindGroupLayoutDescriptor.label = "Generate Mips Bind Group Layout";
+    generateMipsBindGroupLayoutDescriptor.entryCount = std::size(generateMipsBindGroupLayoutEntries);
+    generateMipsBindGroupLayoutDescriptor.entries = generateMipsBindGroupLayoutEntries;
+    generateMipsBindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &generateMipsBindGroupLayoutDescriptor);
+
+    // And the pipeline layout for the generate mips compute shader.
+    WGPUPipelineLayoutDescriptor generateMipsPipelineLayoutDescriptor{};
+    generateMipsPipelineLayoutDescriptor.label = "Generate Mips Pipeline Layout";
+    generateMipsPipelineLayoutDescriptor.bindGroupLayoutCount = 1;
+    generateMipsPipelineLayoutDescriptor.bindGroupLayouts = &generateMipsBindGroupLayout;
+    WGPUPipelineLayout generateMipsPipelineLayout = wgpuDeviceCreatePipelineLayout(device, &generateMipsPipelineLayoutDescriptor);
+
+    // Load the compute shader module.
+    WGPUShaderModuleWGSLDescriptor generateMipsShaderCodeDesc{};
+    generateMipsShaderCodeDesc.chain.next = nullptr;
+    generateMipsShaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    generateMipsShaderCodeDesc.code = GENERATE_MIPS_MODULE;
+
+    WGPUShaderModuleDescriptor generateMipsShaderModuleDescriptor{};
+    generateMipsShaderModuleDescriptor.nextInChain = &generateMipsShaderCodeDesc.chain;
+    generateMipsShaderModuleDescriptor.label = "Generate Mips Shader Module";
+    WGPUShaderModule generateMipsShaderModule = wgpuDeviceCreateShaderModule(device, &generateMipsShaderModuleDescriptor);
+
+    // Now setup the compute pipeline for mipmap generation.
+    WGPUComputePipelineDescriptor generateMipsPipelineDescriptor{};
+    generateMipsPipelineDescriptor.label = "Generate Mips Pipeline";
+    generateMipsPipelineDescriptor.layout = generateMipsPipelineLayout;
+    generateMipsPipelineDescriptor.compute.module = generateMipsShaderModule;
+    generateMipsPipelineDescriptor.compute.entryPoint = "main";
+    generateMipsPipeline = wgpuDeviceCreateComputePipeline(device, &generateMipsPipelineDescriptor);
+
+    // Load the texture
+    texture = loadTexture("assets/textures/webgpu.png");
+    // Create a default view of the texture.
+    textureView = wgpuTextureCreateView(texture, nullptr);
+
+
     // We are done with the adapter, it is safe to release it.
     wgpuAdapterRelease(adapter);
-    }
+}
 
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
 {

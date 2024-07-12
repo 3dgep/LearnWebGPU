@@ -26,7 +26,7 @@ struct Mip
     srcMipLevel : u32, // The source mip level to downscale.
     numMips : u32, // The number of mips to write.
     dimensions : u32, // A bitfield that represents the even/odd dimension of the source texture.
-    isSRGB : bool, // Apply gamma correction on sRGB textures.
+    isSRGB : u32, // Apply gamma correction on sRGB textures.
     texelSize : vec2f, // 1.0 / dstMip1.Size
 };
 
@@ -67,18 +67,32 @@ fn loadColor( i : u32 ) -> vec4f
 // Source: https://en.wikipedia.org/wiki/SRGB#The_reverse_transformation
 fn convertToLinear( x : vec3f ) -> vec3f
 {
-    return x < 0.04045f ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4);
+    if( all(x < vec3f(0.04045f)) )
+    {
+    	return x / 12.92f;
+    }
+    else
+    {
+		return pow((x + 0.055f) / 1.055f, vec3f(2.4f));
+	}
 }
 
 // Source: https://en.wikipedia.org/wiki/SRGB#The_forward_transformation_(CIE_XYZ_to_sRGB)
 fn convertToSRGB( x : vec3f ) -> vec3f
 {
-    return x < 0.0031308 ? 12.92 * x : 1.055 * pow(abs(x), 1.0 / 2.4) - 0.055;
+    if( all(x < vec3f(0.0031308f)) )
+	{
+		return 12.92f * x;
+	}
+	else
+	{
+		return 1.055f * pow(x, vec3f(1.0f / 2.4f)) - 0.055f;
+	}
 }
 
 fn packColor( x : vec4f ) -> vec4f
 {
-    if (mip.isSRGB)
+    if (bool(mip.isSRGB))
 	{
 		return vec4f(convertToSRGB(x.rgb), x.a);
 	}
@@ -89,7 +103,7 @@ fn packColor( x : vec4f ) -> vec4f
 }
 
 @compute @workgroup_size(8, 8, 1)
-fn main( ComputeShaderInput IN )
+fn main( IN : ComputeShaderInput )
 {
     var src1 = vec4f(); 
 
@@ -109,55 +123,53 @@ fn main( ComputeShaderInput IN )
     switch mip.dimensions {
         case WIDTH_HEIGHT_EVEN:
         {
-            var uv = mip.texelSize * vec2f(IN.globalId.xy + 0.5f);
-            src1 = textureSampleLevel(srcMip, linearClampSampler, uv, mip.srcMipLevel);
+            var uv = mip.texelSize * ( vec2f(IN.globalId.xy) + 0.5f );
+            src1 = textureSampleLevel(srcMip, linearClampSampler, uv, f32(mip.srcMipLevel));
         }
-        break;
         case WIDTH_ODD_HEIGHT_EVEN:
         {
             // > 2:1 in X dimension
             // Use 2 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
             // horizontally.
-            var uv = mip.texelSize * vec2f(IN.globalId.xy + vec2f(0.25f, 0.5f);
+            var uv = mip.texelSize * ( vec2f(IN.globalId.xy) + vec2f(0.25f, 0.5f) );
             var offset = mip.texelSize * vec2f(0.5f, 0.0f);
 
-            src1 = 0.5f * ( textureSampleLevel(srcMip, linearClampSampler, uv, mip.srcMipLevel ) + 
-                            textureSampleLevel(srcMip, linearClampSampler, uv + offset, mip.srcMipLevel );
+            src1 = 0.5f * ( textureSampleLevel(srcMip, linearClampSampler, uv, f32(mip.srcMipLevel) ) + 
+                            textureSampleLevel(srcMip, linearClampSampler, uv + offset, f32(mip.srcMipLevel) ) );
         }
-        break;
         case WIDTH_EVEN_HEIGHT_ODD:
         {
             // > 2:1 in Y dimension
             // Use 2 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
             // vertically.
-            var uv = mip.texelSize * ( IN.globalId.xy + vec2f( 0.5f, 0.25f ) );
+            var uv = mip.texelSize * ( vec2f(IN.globalId.xy) + vec2f( 0.5f, 0.25f ) );
             var offset = mip.texelSize * vec2f( 0.0, 0.5 );
 
-            src1 = 0.5f * ( textureSampleLevel( srcMip, linearClampSampler, uv, mip.srcMipLevel ) +
-                           textureSampleLevel( srcMip, linearClampSampler, uv + offset, mip.srcMipLevel ) );
+            src1 = 0.5f * ( textureSampleLevel( srcMip, linearClampSampler, uv, f32(mip.srcMipLevel) ) +
+                           textureSampleLevel( srcMip, linearClampSampler, uv + offset, f32(mip.srcMipLevel) ) );
         }
-        break;
-        case WIDTH_HEIGHT_ODD:
+        case WIDTH_HEIGHT_ODD, default:
         {
             // > 2:1 in in both dimensions
             // Use 4 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
             // in both directions.
-            var uv = mip.texelSize * ( IN.globalId.xy + vec2f( 0.25f, 0.25f ) );
+            var uv = mip.texelSize * ( vec2f(IN.globalId.xy) + vec2f( 0.25f, 0.25f ) );
             var offset = mip.texelSize * 0.5f;
 
-            src1 =  textureSampleLevel( srcMip, linearClampSampler, uv, mip.srcMipLevel );
-            src1 += textureSampleLevel( srcMip, linearClampSampler, uv + vec2f( offset.x, 0.0   ), mip.srcMipLevel );
-            src1 += textureSampleLevel( srcMip, linearClampSampler, uv + vec2f( 0.0,   offset.y ), mip.srcMipLevel );
-            src1 += textureSampleLevel( srcMip, linearClampSampler, uv + vec2f( offset.x, offset.y ), mip.srcMipLevel );
+            src1 =  textureSampleLevel( srcMip, linearClampSampler, uv, f32(mip.srcMipLevel) );
+            src1 += textureSampleLevel( srcMip, linearClampSampler, uv + vec2f( offset.x, 0.0   ), f32(mip.srcMipLevel) );
+            src1 += textureSampleLevel( srcMip, linearClampSampler, uv + vec2f( 0.0,   offset.y ), f32(mip.srcMipLevel) );
+            src1 += textureSampleLevel( srcMip, linearClampSampler, uv + vec2f( offset.x, offset.y ), f32(mip.srcMipLevel) );
             src1 *= 0.25f;
         }
-        break;
     }
 
     textureStore(dstMip1, IN.globalId.xy, packColor(src1));
 
-    if( mip.numMips == 1 ) 
+    if( mip.numMips == 1 )
+    {
         return;
+    }
 
     // Without lane swizzle operations, the only way to share data with other
     // threads is through LDS.
@@ -182,7 +194,9 @@ fn main( ComputeShaderInput IN )
     }
 
     if( mip.numMips == 2 ) 
+    {
         return;
+    }
 
     workgroupBarrier();
 
@@ -195,11 +209,13 @@ fn main( ComputeShaderInput IN )
         src1 = 0.25 * ( src1 + src2 + src3 + src4 );
 
         textureStore( dstMip3, IN.globalId.xy / 4, packColor( src1 ) );
-        storeColor( IN.localIndex, Src1 );
+        storeColor( src1, IN.localIndex );
     }
 
     if ( mip.numMips == 3 )
+    {
         return;
+    }
 
     workgroupBarrier();
 
