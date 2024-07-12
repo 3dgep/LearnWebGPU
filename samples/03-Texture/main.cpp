@@ -6,6 +6,7 @@
 #include <SDL2/SDL.h>
 #include <webgpu/webgpu.h>
 #include <sdl2webgpu.h>
+#include <stb_image.h>
 
 #ifdef WEBGPU_BACKEND_WGPU
 #include <webgpu/wgpu.h> // Include non-standard functions.
@@ -18,10 +19,12 @@
 #include <glm/gtc/matrix_transform.hpp> // For matrix transformations.
 
 #include <cassert>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <map>
+
 
 std::map<WGPUFeatureName, std::string> featureNames = {
     {WGPUFeatureName_DepthClipControl, "DepthClipControl"},
@@ -55,18 +58,18 @@ const char* SHADER_MODULE = {
 struct Vertex
 {
     glm::vec3 position;
-    glm::vec3 color;
+    glm::vec2 texCoord;
 };
 
-static Vertex vertices[8] = {
-    { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, 0.0f} },  // 0
-    { {-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f, 0.0f} },   // 1
-    { {1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 0.0f} },    // 2
-    { {1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f} },   // 3
-    { {-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 1.0f} },   // 4
-    { {-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f} },    // 5
-    { {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f} },     // 6
-    { {1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f} }     // 7
+static Vertex vertices[] = {
+    { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f } }, // 0
+    { {-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f } },  // 1
+    { {1.0f, 1.0f, -1.0f}, {1.0f, 1.0f} },    // 2
+    { {1.0f, -1.0f, -1.0f}, {1.0f, 0.0f} },   // 3
+    { {-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f} },   // 4
+    { {-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} },    // 5
+    { {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} },     // 6
+    { {1.0f, -1.0f, 1.0f}, {1.0f, 0.0f} }     // 7
 };
 
 static uint16_t indices[36] = {
@@ -92,6 +95,8 @@ WGPUBindGroupLayout bindGroupLayout = nullptr;
 WGPUBuffer vertexBuffer = nullptr;
 WGPUBuffer indexBuffer = nullptr;
 WGPUBuffer mvpBuffer = nullptr;
+WGPUTexture texture = nullptr;
+WGPUTextureView textureView = nullptr;
 
 Timer timer;
 bool isRunning = true;
@@ -264,7 +269,7 @@ void onUncapturedErrorCallback(WGPUErrorType type, char const* message, void*)
 // A callback function that is called when submitted work is done.
 void onQueueWorkDone(WGPUQueueWorkDoneStatus status, void*)
 {
-//    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
+    //    std::cout << "Queue work done [" << std::hex << status << std::dec << "]: " << queueWorkDoneStatusNames[status] << std::endl;
 }
 
 // Poll the GPU to allow work to be done on the device queue.
@@ -341,6 +346,59 @@ void onResize(int width, int height)
     depthTextureView = wgpuTextureCreateView(depthTexture, &depthTextureViewDescriptor);
 }
 
+void generateMips(WGPUTexture texture)
+{
+
+}
+
+WGPUTexture loadTexture(const std::filesystem::path& filePath)
+{
+    // Load the texture
+    int width, height, channels;
+    unsigned char* data = stbi_load(filePath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+    if (!data)
+    {
+        std::cerr << "Failed to load texture: " << filePath << std::endl;
+        return nullptr;
+    }
+
+    const WGPUExtent3D textureSize{ static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1u };
+
+    // Create the texture object.
+    WGPUTextureDescriptor textureDesc{};
+    textureDesc.label = filePath.filename().string().c_str();
+    textureDesc.dimension = WGPUTextureDimension_2D;
+    textureDesc.format = WGPUTextureFormat_RGBA8Unorm;
+    textureDesc.size = textureSize;
+    textureDesc.sampleCount = 1;
+    textureDesc.mipLevelCount = 1;
+    textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+    WGPUTexture texture = wgpuDeviceCreateTexture(device, &textureDesc);
+
+    // Copy mip level 0.
+    WGPUImageCopyTexture dst{};
+    dst.texture = texture;
+    dst.mipLevel = 0;
+    dst.origin = { 0, 0, 0 };
+    dst.aspect = WGPUTextureAspect_All;
+
+    WGPUTextureDataLayout src{};
+    src.offset = 0;
+    src.bytesPerRow = 4 * width;
+    src.rowsPerImage = height;
+
+    wgpuQueueWriteTexture(queue, &dst, data, static_cast<size_t>(4 * width * height), &src, &textureSize);
+
+    stbi_image_free(data);
+
+    generateMips(texture);
+
+    return texture;
+}
+
+
 // Initialize the application.
 void init()
 {
@@ -406,7 +464,7 @@ void init()
 
     // Create a minimal device with no special features and default limits.
     WGPUDeviceDescriptor deviceDescriptor{};
-    deviceDescriptor.label = "LearnWebGPU"; // You can use anything here.
+    deviceDescriptor.label = "LearnWebGPU"; // Used for debugging.
     deviceDescriptor.requiredFeatureCount = 0; // We don't require any extra features.
     deviceDescriptor.requiredFeatures = nullptr;
     deviceDescriptor.requiredLimits = nullptr; // We don't require any specific limits.
@@ -432,6 +490,11 @@ void init()
         std::cerr << "Failed to get device queue." << std::endl;
         return;
     }
+
+    // Load the texture
+    texture = loadTexture("assets/textures/webgpu.png");
+    // Create a default view of the texture.
+    textureView = wgpuTextureCreateView(texture, nullptr);
 
     // Create the vertex buffer.
     WGPUBufferDescriptor vertexBufferDescriptor{};
@@ -542,8 +605,8 @@ void init()
             .shaderLocation = 0,
         },
         {
-            // glm::vec3 color;
-            .format = WGPUVertexFormat_Float32x3,
+            // glm::vec2 texCoord;
+            .format = WGPUVertexFormat_Float32x2,
             .offset = sizeof(glm::vec3),
             .shaderLocation = 1,
         }
@@ -594,7 +657,7 @@ void init()
 
     // We are done with the adapter, it is safe to release it.
     wgpuAdapterRelease(adapter);
-}
+    }
 
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface s)
 {
@@ -783,6 +846,7 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
+    wgpuTextureRelease(texture);
     wgpuBufferRelease(vertexBuffer);
     wgpuBufferRelease(indexBuffer);
     wgpuBufferRelease(mvpBuffer);

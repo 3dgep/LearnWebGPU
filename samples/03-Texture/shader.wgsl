@@ -2,7 +2,7 @@ R"(
 struct VertexIn
 {
     @location(0) position: vec3f,
-    @location(1) color: vec3f,
+    @location(1) texCoord: vec2f,
 };
 
 struct VertexOut
@@ -24,7 +24,7 @@ fn vs_main(in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
     out.position =  mvp * vec4f(in.position, 1.0);
-    out.color = in.color;
+    out.color = vec3f(in.texCoord, 1.0);
     return out;
 }
 

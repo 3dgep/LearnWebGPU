@@ -8,6 +8,7 @@ set(TARGET_NAME 03-Texture)
 set( SRC
 	main.cpp
 	shader.wgsl
+	generateMips.wgsl
 )
 
 add_executable( ${TARGET_NAME} ${SRC} )
@@ -28,6 +29,13 @@ if(EMSCRIPTEN)
 		SUFFIX .html
 	)
 endif(EMSCRIPTEN)
+
+if(MSVC)
+	set_target_properties( ${TARGET_NAME}
+	PROPERTIES
+		VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
+	)
+endif(MSVC)
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,
 # so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)
