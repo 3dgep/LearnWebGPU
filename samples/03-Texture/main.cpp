@@ -66,23 +66,39 @@ struct Vertex
 };
 
 static Vertex vertices[] = {
-    { {-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f } }, // 0
-    { {-1.0f, 1.0f, -1.0f}, {0.0f, 1.0f } },  // 1
-    { {1.0f, 1.0f, -1.0f}, {1.0f, 1.0f} },    // 2
-    { {1.0f, -1.0f, -1.0f}, {1.0f, 0.0f} },   // 3
-    { {-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f} },   // 4
-    { {-1.0f, 1.0f, 1.0f}, {0.0f, 1.0f} },    // 5
-    { {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f} },     // 6
-    { {1.0f, -1.0f, 1.0f}, {1.0f, 0.0f} }     // 7
+    { {-1, 1, 1}, {0, 0} }, // 0
+    {{-1,-1, 1},{0,1}},     // 1
+    {{1, -1, 1},{1, 1}},    // 2
+    {{1, 1, 1},{1, 0}},     // 3
+    {{1, 1, 1}, {0, 0}},    // 4
+    {{1, -1, 1}, {0, 1}},   // 5
+    {{1, -1, -1}, {1, 1}},  // 6
+    {{1, 1, -1}, {1, 0}},   // 7
+    {{1, 1, -1}, {1, 1}},   // 8
+    {{1, -1, -1}, {1, 0}},  // 9
+    {{-1,-1,-1}, {0, 0}},   // 10
+    {{-1,1,-1}, {0,1}},     // 11
+    {{-1, 1, -1}, {0,0}},   // 12
+    {{-1, -1, -1}, {0,1}},  // 13
+    {{-1, -1, 1}, {1, 1}},  // 14
+    {{-1, 1, 1}, {1,0}},    // 15
+    {{-1, 1, -1}, {0,0}},   // 16
+    {{-1, 1, 1}, {0, 1}},   // 17
+    {{1, 1, 1}, {1, 1}},    // 18
+    {{1, 1, -1}, {1, 0}},   // 19
+    {{-1,-1, 1}, {0,0}},    // 20
+    {{-1,-1,-1}, {0,1}},    // 21
+    {{1, -1, -1}, {1, 1}},  // 22
+    {{1, -1, 1}, {1, 0}},   // 23
 };
 
-static uint16_t indices[36] = {
-    0, 1, 2, 0, 2, 3,
-    4, 6, 5, 4, 7, 6,
-    4, 5, 1, 4, 1, 0,
-    3, 2, 6, 3, 6, 7,
-    1, 5, 6, 1, 6, 2,
-    4, 0, 3, 4, 3, 7
+static uint16_t indices[] = {
+    0, 1, 2, 2, 3, 0, // Front face
+    4, 5, 6, 6, 7, 4, // Right face
+    8, 9, 10, 10, 11, 8, // Back face
+    12, 13, 14, 14, 15, 12, // Left face
+    16, 17, 18, 18, 19, 16, // Top face
+    20, 21, 22, 22, 23, 20, // Bottom face
 };
 
 struct Mip
@@ -91,7 +107,7 @@ struct Mip
     uint32_t numMips = 0;
     uint32_t dimensions = 0;
     uint32_t isSRGB = 0;
-    glm::vec2 texelSize{0};
+    glm::vec2 texelSize{ 0 };
 };
 
 SDL_Window* window = nullptr;
@@ -112,6 +128,7 @@ WGPUBuffer indexBuffer = nullptr;
 WGPUBuffer mvpBuffer = nullptr;
 WGPUTexture texture = nullptr;
 WGPUTextureView textureView = nullptr;
+WGPUSampler linearRepeatSampler = nullptr;
 
 Timer timer;
 bool isRunning = true;
@@ -573,20 +590,42 @@ void init()
     colorTargetState.writeMask = WGPUColorWriteMask_All;
 
     // Setup the binding layout for the renderer.
-    // The binding group only requires a single entry:
     // @group(0) @binding(0) var<uniform> mvp : mat4x4f;
+    // @group(0) @binding(1) var albedoTexture : texture_2d<f32>;
+    // @group(0) @binding(2) var linearRepeatSampler : sampler;
+
     // First, define the binding entry in the group:
-    WGPUBindGroupLayoutEntry bindGroupLayoutEntry{};
-    bindGroupLayoutEntry.binding = 0;
-    bindGroupLayoutEntry.visibility = WGPUShaderStage_Vertex;
-    bindGroupLayoutEntry.buffer.type = WGPUBufferBindingType_Uniform;
-    bindGroupLayoutEntry.buffer.minBindingSize = sizeof(glm::mat4);
+    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[] = {
+        {
+            .binding = 0,
+            .visibility = WGPUShaderStage_Vertex,
+            .buffer = {
+                .type = WGPUBufferBindingType_Uniform,
+                .minBindingSize = sizeof(glm::mat4)
+            },
+        },
+        {
+            .binding = 1,
+            .visibility = WGPUShaderStage_Fragment,
+            .texture = {
+                .sampleType = WGPUTextureSampleType_Float,
+                .viewDimension = WGPUTextureViewDimension_2D,
+            },
+        },
+        {
+            .binding = 2,
+            .visibility = WGPUShaderStage_Fragment,
+            .sampler = {
+                .type = WGPUSamplerBindingType_Filtering
+            },
+        }
+    };
 
     // Setup the binding group.
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor{};
     bindGroupLayoutDescriptor.label = "Binding Group";
-    bindGroupLayoutDescriptor.entryCount = 1;
-    bindGroupLayoutDescriptor.entries = &bindGroupLayoutEntry;
+    bindGroupLayoutDescriptor.entryCount = std::size(bindGroupLayoutEntries);
+    bindGroupLayoutDescriptor.entries = bindGroupLayoutEntries;
     bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDescriptor);
 
     // Create the pipeline layout.
@@ -604,7 +643,7 @@ void init()
     pipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     pipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     pipelineDescriptor.primitive.frontFace = WGPUFrontFace_CCW;
-    pipelineDescriptor.primitive.cullMode = WGPUCullMode_Back;
+    pipelineDescriptor.primitive.cullMode = WGPUCullMode_None;
 
     // Describe the vertex layout.
     WGPUVertexAttribute attributes[] = {
@@ -621,6 +660,7 @@ void init()
             .shaderLocation = 1,
         }
     };
+
     WGPUVertexBufferLayout vertexBufferLayout{};
     vertexBufferLayout.arrayStride = sizeof(Vertex);
     vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
@@ -658,6 +698,21 @@ void init()
     pipelineDescriptor.multisample.alphaToCoverageEnabled = false;
 
     pipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDescriptor);
+
+    // Setup the texture sampler.
+    WGPUSamplerDescriptor linearRepeatSamplerDesc{};
+    linearRepeatSamplerDesc.label = "Linear Repeat Sampler";
+    linearRepeatSamplerDesc.addressModeU = WGPUAddressMode_Repeat;
+    linearRepeatSamplerDesc.addressModeV = WGPUAddressMode_Repeat;
+    linearRepeatSamplerDesc.addressModeW = WGPUAddressMode_Repeat;
+    linearRepeatSamplerDesc.magFilter = WGPUFilterMode_Linear;
+    linearRepeatSamplerDesc.minFilter = WGPUFilterMode_Linear;
+    linearRepeatSamplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    linearRepeatSamplerDesc.lodMinClamp = 0.0f;
+    linearRepeatSamplerDesc.lodMaxClamp = FLT_MAX;
+    linearRepeatSamplerDesc.compare = WGPUCompareFunction_Undefined;
+    linearRepeatSamplerDesc.maxAnisotropy = 1;
+    linearRepeatSampler = wgpuDeviceCreateSampler(device, &linearRepeatSamplerDesc);
 
     // Release the shader module.
     wgpuShaderModuleRelease(shaderModule);
@@ -781,6 +836,11 @@ void init()
     generateMipsPipelineDescriptor.compute.entryPoint = "main";
     generateMipsPipeline = wgpuDeviceCreateComputePipeline(device, &generateMipsPipelineDescriptor);
 
+    // We are now done with the shader module.
+    wgpuShaderModuleRelease(generateMipsShaderModule);
+    // And the pipeline layout
+    wgpuPipelineLayoutRelease(generateMipsPipelineLayout);
+
     // Load the texture
     texture = loadTexture("assets/textures/webgpu.png");
     // Create a default view of the texture.
@@ -888,17 +948,28 @@ void render()
     wgpuRenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, WGPUIndexFormat_Uint16, 0, sizeof(indices));
 
     // Bind the MVP uniform buffer.
-    WGPUBindGroupEntry binding{};
-    binding.binding = 0;
-    binding.buffer = mvpBuffer;
-    binding.offset = 0;
-    binding.size = sizeof(glm::mat4);
+    WGPUBindGroupEntry binding[] = {
+        {
+            .binding = 0,
+            .buffer = mvpBuffer,
+            .offset = 0,
+            .size = sizeof(glm::mat4),
+        },
+        {
+            .binding = 1,
+            .textureView = textureView,
+        },
+        {
+            .binding = 2,
+            .sampler = linearRepeatSampler,
+        }
+    };
 
     WGPUBindGroupDescriptor bindGroupDescriptor{};
     bindGroupDescriptor.label = "Bind Group";
     bindGroupDescriptor.layout = bindGroupLayout;
-    bindGroupDescriptor.entryCount = 1;
-    bindGroupDescriptor.entries = &binding;
+    bindGroupDescriptor.entryCount = std::size(binding);
+    bindGroupDescriptor.entries = binding;
     WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(device, &bindGroupDescriptor);
 
     wgpuRenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, nullptr);
@@ -964,9 +1035,9 @@ void update(void* userdata = nullptr)
     int width, height;
     SDL_GetWindowSize(window, &width, &height);
     float angle = static_cast<float>(timer.totalSeconds() * 90.0);
-    glm::vec3 axis = glm::vec3(0.0f, 1.0f, 1.0f);
+    glm::vec3 axis = glm::vec3(1.0f, 1.0f, 1.0f);
     glm::mat4 modelMatrix = glm::rotate(glm::mat4{ 1 }, glm::radians(angle), axis);
-    glm::mat4 viewMatrix = glm::lookAt(glm::vec3{ 0, 0, -10 }, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 1, 0 });
+    glm::mat4 viewMatrix = glm::lookAt(glm::vec3{ 0, 0, 10 }, glm::vec3{ 0, 0, 0 }, glm::vec3{ 0, 1, 0 });
     glm::mat4 projectionMatrix = glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
     glm::mat4 mvpMatrix = projectionMatrix * viewMatrix * modelMatrix;
 
@@ -978,12 +1049,16 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
+    wgpuSamplerRelease(linearRepeatSampler);
+    wgpuTextureViewRelease(textureView);
     wgpuTextureRelease(texture);
     wgpuBufferRelease(vertexBuffer);
     wgpuBufferRelease(indexBuffer);
     wgpuBufferRelease(mvpBuffer);
     wgpuBindGroupLayoutRelease(bindGroupLayout);
+    wgpuBindGroupLayoutRelease(generateMipsBindGroupLayout);
     wgpuRenderPipelineRelease(pipeline);
+    wgpuComputePipelineRelease(generateMipsPipeline);
     wgpuTextureRelease(depthTexture);
     wgpuTextureViewRelease(depthTextureView);
     wgpuSurfaceUnconfigure(surface);

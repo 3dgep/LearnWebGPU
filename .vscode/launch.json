@@ -27,10 +27,10 @@
             "console": "externalTerminal"
         },
         {
-            "name": "03-Mesh",
+            "name": "03-Texture",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/out/build/vs17/samples/03-Mesh/Debug/03-Mesh.exe",
+            "program": "${workspaceRoot}/out/build/vs17/samples/03-Texture/Debug/03-Texture.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
@@ -54,8 +54,8 @@
         {
             "type": "chrome",
             "request": "launch",
-            "name": "03-Mesh - Chrome",
-            "url": "http://localhost:3000/out/build/emscripten/samples/03-Mesh/Debug/03-Mesh.html",
+            "name": "03-Texture - Chrome",
+            "url": "http://localhost:3000/out/build/emscripten/samples/03-Texture/Debug/03-Texture.html",
             "preLaunchTask": "StartServer"
         },
     ]
