@@ -189,7 +189,7 @@ fn main( IN : ComputeShaderInput )
         var src4 = loadColor( IN.localIndex + 0x09 );
         src1 = 0.25f * ( src1 + src2 + src3 + src4 );
 
-        textureStore( dstMip2, IN.globalId.xy, packColor( src1 ) );
+        textureStore( dstMip2, IN.globalId.xy / 2, packColor( src1 ) );
         storeColor( src1, IN.localIndex );
     }
 

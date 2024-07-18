@@ -26,6 +26,10 @@
 #include <map>
 
 
+#ifndef WEBGPU_BACKEND_DAWN
+WGPUBool WGPUStatus_Success = 1;
+#endif
+
 std::map<WGPUFeatureName, std::string> featureNames = {
     {WGPUFeatureName_DepthClipControl, "DepthClipControl"},
     {WGPUFeatureName_Depth32FloatStencil8, "Depth32FloatStencil8"},
@@ -114,6 +118,7 @@ SDL_Window* window = nullptr;
 
 WGPUInstance instance = nullptr;
 WGPUDevice device = nullptr;
+WGPULimits deviceLimits{};
 WGPUQueue queue = nullptr;
 WGPUSurface surface = nullptr;
 WGPUTexture depthTexture = nullptr;
@@ -126,14 +131,59 @@ WGPUBindGroupLayout bindGroupLayout = nullptr;
 WGPUBuffer vertexBuffer = nullptr;
 WGPUBuffer indexBuffer = nullptr;
 WGPUBuffer mvpBuffer = nullptr;
+WGPUBuffer generateMipsBuffer = nullptr;
 WGPUTexture texture = nullptr;
+WGPUTexture dummyTexture = nullptr; // Dummy texture used to pad unused textures during mipmap generation.
 WGPUTextureView textureView = nullptr;
+WGPUSampler linearClampSampler = nullptr;
 WGPUSampler linearRepeatSampler = nullptr;
 
 Timer timer;
 bool isRunning = true;
 
-WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions* options)
+/***************************************************************************
+* These functions were taken from the MiniEngine.
+* Source code available here:
+* https://github.com/Microsoft/DirectX-Graphics-Samples/blob/master/MiniEngine/Core/Math/Common.h
+* Retrieved: January 13, 2016
+**************************************************************************/
+template <typename T>
+constexpr T AlignUpWithMask(T value, size_t mask)
+{
+    return (T)(((size_t)value + mask) & ~mask);
+}
+
+template <typename T>
+constexpr T AlignDownWithMask(T value, size_t mask)
+{
+    return (T)((size_t)value & ~mask);
+}
+
+template <typename T>
+constexpr T AlignUp(T value, size_t alignment)
+{
+    return AlignUpWithMask(value, alignment - 1);
+}
+
+template <typename T>
+constexpr T AlignDown(T value, size_t alignment)
+{
+    return AlignDownWithMask(value, alignment - 1);
+}
+template <typename T>
+constexpr bool IsAligned(T value, size_t alignment)
+{
+    return 0 == ((size_t)value & (alignment - 1));
+}
+
+template <typename T>
+constexpr T DivideByMultiple(T value, size_t alignment)
+{
+    return (T)((value + alignment - 1) / alignment);
+}
+/***************************************************************************/
+
+WGPUAdapter requestAdapter(const WGPURequestAdapterOptions* options)
 {
     // Used by the requestAdapterCallback function to store the adapter and to notify
     // us when the request is complete.
@@ -185,40 +235,40 @@ void inspectAdapter(WGPUAdapter adapter)
 
     // List adapter limits.
     WGPUSupportedLimits supportedLimits{};
-    if (wgpuAdapterGetLimits(adapter, &supportedLimits))
+    if (wgpuAdapterGetLimits(adapter, &supportedLimits) == WGPUStatus_Success)
     {
-        WGPULimits limits = supportedLimits.limits;
+        deviceLimits = supportedLimits.limits;
         std::cout << "Limits: " << std::endl;
-        std::cout << "  maxTextureDimension1D: " << limits.maxTextureDimension1D << std::endl;
-        std::cout << "  maxTextureDimension2D: " << limits.maxTextureDimension2D << std::endl;
-        std::cout << "  maxTextureDimension3D: " << limits.maxTextureDimension3D << std::endl;
-        std::cout << "  maxTextureArrayLayers: " << limits.maxTextureArrayLayers << std::endl;
-        std::cout << "  maxBindGroups: " << limits.maxBindGroups << std::endl;
-        std::cout << "  maxBindGroupsPlusVertexBuffers: " << limits.maxBindGroupsPlusVertexBuffers << std::endl;
-        std::cout << "  maxBindingsPerBindGroup: " << limits.maxBindingsPerBindGroup << std::endl;
-        std::cout << "  maxDynamicUniformBuffersPerPipelineLayout: " << limits.maxDynamicUniformBuffersPerPipelineLayout << std::endl;
-        std::cout << "  maxDynamicStorageBuffersPerPipelineLayout: " << limits.maxDynamicStorageBuffersPerPipelineLayout << std::endl;
-        std::cout << "  maxSampledTexturesPerShaderStage: " << limits.maxSampledTexturesPerShaderStage << std::endl;
-        std::cout << "  maxSamplersPerShaderStage: " << limits.maxSamplersPerShaderStage << std::endl;
-        std::cout << "  maxStorageBuffersPerShaderStage: " << limits.maxStorageBuffersPerShaderStage << std::endl;
-        std::cout << "  maxStorageTexturesPerShaderStage: " << limits.maxStorageTexturesPerShaderStage << std::endl;
-        std::cout << "  maxUniformBuffersPerShaderStage: " << limits.maxUniformBuffersPerShaderStage << std::endl;
-        std::cout << "  maxUniformBufferBindingSize: " << limits.maxUniformBufferBindingSize << std::endl;
-        std::cout << "  maxStorageBufferBindingSize: " << limits.maxStorageBufferBindingSize << std::endl;
-        std::cout << "  minUniformBufferOffsetAlignment: " << limits.minUniformBufferOffsetAlignment << std::endl;
-        std::cout << "  minStorageBufferOffsetAlignment: " << limits.minStorageBufferOffsetAlignment << std::endl;
-        std::cout << "  maxVertexBuffers: " << limits.maxVertexBuffers << std::endl;
-        std::cout << "  maxBufferSize: " << limits.maxBufferSize << std::endl;
-        std::cout << "  maxVertexAttributes: " << limits.maxVertexAttributes << std::endl;
-        std::cout << "  maxVertexBufferArrayStride: " << limits.maxVertexBufferArrayStride << std::endl;
-        std::cout << "  maxInterStageShaderComponents: " << limits.maxInterStageShaderComponents << std::endl;
-        std::cout << "  maxInterStageShaderVariables: " << limits.maxInterStageShaderVariables << std::endl;
-        std::cout << "  maxComputeWorkgroupStorageSize: " << limits.maxComputeWorkgroupStorageSize << std::endl;
-        std::cout << "  maxComputeInvocationsPerWorkgroup: " << limits.maxComputeInvocationsPerWorkgroup << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeX: " << limits.maxComputeWorkgroupSizeX << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeY: " << limits.maxComputeWorkgroupSizeY << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeZ: " << limits.maxComputeWorkgroupSizeZ << std::endl;
-        std::cout << "  maxComputeWorkgroupsPerDimension: " << limits.maxComputeWorkgroupsPerDimension << std::endl;
+        std::cout << "  maxTextureDimension1D: " << deviceLimits.maxTextureDimension1D << std::endl;
+        std::cout << "  maxTextureDimension2D: " << deviceLimits.maxTextureDimension2D << std::endl;
+        std::cout << "  maxTextureDimension3D: " << deviceLimits.maxTextureDimension3D << std::endl;
+        std::cout << "  maxTextureArrayLayers: " << deviceLimits.maxTextureArrayLayers << std::endl;
+        std::cout << "  maxBindGroups: " << deviceLimits.maxBindGroups << std::endl;
+        std::cout << "  maxBindGroupsPlusVertexBuffers: " << deviceLimits.maxBindGroupsPlusVertexBuffers << std::endl;
+        std::cout << "  maxBindingsPerBindGroup: " << deviceLimits.maxBindingsPerBindGroup << std::endl;
+        std::cout << "  maxDynamicUniformBuffersPerPipelineLayout: " << deviceLimits.maxDynamicUniformBuffersPerPipelineLayout << std::endl;
+        std::cout << "  maxDynamicStorageBuffersPerPipelineLayout: " << deviceLimits.maxDynamicStorageBuffersPerPipelineLayout << std::endl;
+        std::cout << "  maxSampledTexturesPerShaderStage: " << deviceLimits.maxSampledTexturesPerShaderStage << std::endl;
+        std::cout << "  maxSamplersPerShaderStage: " << deviceLimits.maxSamplersPerShaderStage << std::endl;
+        std::cout << "  maxStorageBuffersPerShaderStage: " << deviceLimits.maxStorageBuffersPerShaderStage << std::endl;
+        std::cout << "  maxStorageTexturesPerShaderStage: " << deviceLimits.maxStorageTexturesPerShaderStage << std::endl;
+        std::cout << "  maxUniformBuffersPerShaderStage: " << deviceLimits.maxUniformBuffersPerShaderStage << std::endl;
+        std::cout << "  maxUniformBufferBindingSize: " << deviceLimits.maxUniformBufferBindingSize << std::endl;
+        std::cout << "  maxStorageBufferBindingSize: " << deviceLimits.maxStorageBufferBindingSize << std::endl;
+        std::cout << "  minUniformBufferOffsetAlignment: " << deviceLimits.minUniformBufferOffsetAlignment << std::endl;
+        std::cout << "  minStorageBufferOffsetAlignment: " << deviceLimits.minStorageBufferOffsetAlignment << std::endl;
+        std::cout << "  maxVertexBuffers: " << deviceLimits.maxVertexBuffers << std::endl;
+        std::cout << "  maxBufferSize: " << deviceLimits.maxBufferSize << std::endl;
+        std::cout << "  maxVertexAttributes: " << deviceLimits.maxVertexAttributes << std::endl;
+        std::cout << "  maxVertexBufferArrayStride: " << deviceLimits.maxVertexBufferArrayStride << std::endl;
+        std::cout << "  maxInterStageShaderComponents: " << deviceLimits.maxInterStageShaderComponents << std::endl;
+        std::cout << "  maxInterStageShaderVariables: " << deviceLimits.maxInterStageShaderVariables << std::endl;
+        std::cout << "  maxComputeWorkgroupStorageSize: " << deviceLimits.maxComputeWorkgroupStorageSize << std::endl;
+        std::cout << "  maxComputeInvocationsPerWorkgroup: " << deviceLimits.maxComputeInvocationsPerWorkgroup << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeX: " << deviceLimits.maxComputeWorkgroupSizeX << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeY: " << deviceLimits.maxComputeWorkgroupSizeY << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeZ: " << deviceLimits.maxComputeWorkgroupSizeZ << std::endl;
+        std::cout << "  maxComputeWorkgroupsPerDimension: " << deviceLimits.maxComputeWorkgroupsPerDimension << std::endl;
     }
 
     // List the adapter features.
@@ -378,9 +428,182 @@ void onResize(int width, int height)
     depthTextureView = wgpuTextureCreateView(depthTexture, &depthTextureViewDescriptor);
 }
 
-void generateMips(WGPUTexture texture)
-{
+/**
+ * bitScanForward
+ * @author Kim Walisch (2012)
+ * @param bb bitboard to scan
+ * @precondition bb != 0
+ * @return index (0..63) of least significant one bit
+ * @source: https://www.chessprogramming.org/BitScan
+ * @date: July 18th, 2024
+ */
+int bitScanForward(uint64_t bb) {
+    static const int index64[64] = {
+        0, 47,  1, 56, 48, 27,  2, 60,
+       57, 49, 41, 37, 28, 16,  3, 61,
+       54, 58, 35, 52, 50, 42, 21, 44,
+       38, 32, 29, 23, 17, 11,  4, 62,
+       46, 55, 26, 59, 40, 36, 15, 53,
+       34, 51, 20, 43, 31, 22, 10, 45,
+       25, 39, 14, 33, 19, 30,  9, 24,
+       13, 18,  8, 12,  7,  6,  5, 63
+    };
 
+    const uint64_t debruijn64 = 0x03f79d71b4cb0a89;
+    assert(bb != 0);
+    return index64[((bb ^ (bb - 1)) * debruijn64) >> 58];
+}
+
+void generateMips(const WGPUTextureDescriptor& desc, WGPUTexture texture)
+{
+    // Create a command encoder.
+    WGPUCommandEncoderDescriptor commandEncoderDesc{};
+    commandEncoderDesc.label = "Generate Mips Command Encoder";
+    WGPUCommandEncoder commandEncoder = wgpuDeviceCreateCommandEncoder(device, &commandEncoderDesc);
+
+    // Create a compute pass
+    WGPUComputePassDescriptor computePassDesc{};
+    computePassDesc.label = "Generate Mips Compute Pass";
+    computePassDesc.timestampWrites = nullptr;
+    WGPUComputePassEncoder computePassEncoder = wgpuCommandEncoderBeginComputePass(commandEncoder, &computePassDesc);
+
+    wgpuComputePassEncoderSetPipeline(computePassEncoder, generateMipsPipeline);
+
+    // Compute the stride between dynamic uniform buffer offsets.
+    uint32_t uniformStride = AlignUp<uint32_t>(sizeof(Mip), 256 /*deviceLimits.minUniformBufferOffsetAlignment*/);
+
+    WGPUBindGroupEntry bindGroupEntries[7]{};
+    bindGroupEntries[0].binding = 0;
+    bindGroupEntries[0].buffer = generateMipsBuffer;
+    bindGroupEntries[0].offset = 0;
+    bindGroupEntries[0].size = sizeof(Mip);
+
+    // Bindings 1 .. 5 are bound in the loop below.
+
+    bindGroupEntries[6].binding = 6;
+    bindGroupEntries[6].sampler = linearClampSampler;
+
+    for (uint32_t srcMip = 0, pass = 0; srcMip < desc.mipLevelCount - 1; ++pass)
+    {
+        uint32_t srcWidth = desc.size.width >> srcMip;
+        uint32_t srcHeight = desc.size.height >> srcMip;
+        uint32_t dstWidth = srcWidth >> 1u;
+        uint32_t dstHeight = srcHeight >> 1u;
+
+        Mip mip{};
+        // 0b00(0): Both width and height are even.
+        // 0b01(1): Width is odd, height is even.
+        // 0b10(2): Width is even, height is odd.
+        // 0b11(3): Both width and height are odd.
+        mip.dimensions = (srcHeight & 1) << 1 | (srcWidth & 1);
+
+        // The number of times we can half the size of the texture and get
+        // exactly a 50% reduction in size.
+        // A 1 bit in the width or height indicates an odd dimension.
+        // The case where either the width or the height is exactly 1 is handled
+        // as a special case (as the dimension does not require reduction).
+        int mipCount = bitScanForward((dstWidth == 1 ? dstHeight : dstWidth) | (dstHeight == 1 ? dstWidth : dstHeight));
+
+        // Maximum number of mips to generate is 4.
+        mipCount = std::min(mipCount + 1, 4);
+
+        // Clamp to total number of mips left over.
+        mipCount = (srcMip + mipCount) >= desc.mipLevelCount ? static_cast<int>(desc.mipLevelCount - srcMip) - 1 : mipCount;
+
+        // Dimensions should not reduce to 0.
+        // This can happen if the width and height are not the same.
+        dstWidth = std::max(1u, dstWidth);
+        dstHeight = std::max(1u, dstHeight);
+
+        mip.srcMipLevel = srcMip;
+        mip.numMips = mipCount;
+        mip.texelSize = { 1.0f / static_cast<float>(dstWidth), 1.0f / static_cast<float>(dstHeight) };
+
+        // Write the mip info to the buffer.
+        uint32_t bufferOffset = uniformStride * pass;
+        wgpuQueueWriteBuffer(queue, generateMipsBuffer, bufferOffset, &mip, sizeof(Mip));
+
+        bindGroupEntries[0].offset = bufferOffset;
+
+        // Setup a texture view for the source texture.
+        WGPUTextureViewDescriptor srcTextureViewDesc{};
+        srcTextureViewDesc.label = "Generate Mip Source Texture";
+        srcTextureViewDesc.format = desc.format;
+        srcTextureViewDesc.dimension = WGPUTextureViewDimension_2D;
+        srcTextureViewDesc.baseMipLevel = srcMip;
+        srcTextureViewDesc.mipLevelCount = 1;
+        srcTextureViewDesc.baseArrayLayer = 0;
+        srcTextureViewDesc.arrayLayerCount = 1;
+        srcTextureViewDesc.aspect = WGPUTextureAspect_All;
+        WGPUTextureView srcTextureView = wgpuTextureCreateView(texture, &srcTextureViewDesc);
+
+        bindGroupEntries[1].binding = 1;
+        bindGroupEntries[1].textureView = srcTextureView;
+
+        uint32_t dstMip = 0;
+        for (; dstMip < mipCount; ++dstMip)
+        {
+            WGPUTextureViewDescriptor dstMipViewDesc{};
+            dstMipViewDesc.label = "Generate Mip Destination Texture";
+            dstMipViewDesc.format = desc.format;
+            dstMipViewDesc.dimension = WGPUTextureViewDimension_2D;
+            dstMipViewDesc.baseMipLevel = srcMip + dstMip + 1;
+            dstMipViewDesc.mipLevelCount = 1;
+            dstMipViewDesc.baseArrayLayer = 0;
+            dstMipViewDesc.arrayLayerCount = 1;
+            dstMipViewDesc.aspect = WGPUTextureAspect_All;
+            WGPUTextureView dstMipView = wgpuTextureCreateView(texture, &dstMipViewDesc);
+
+            bindGroupEntries[2 + dstMip].binding = 2 + dstMip;
+            bindGroupEntries[2 + dstMip].textureView = dstMipView;
+        }
+
+        // Pad any unused mips with a dummy texture view.
+        for (; dstMip < 4; ++dstMip)
+        {
+            WGPUTextureViewDescriptor dstMipViewDesc{};
+            dstMipViewDesc.label = "Generate Mip Dummy Texture";
+            dstMipViewDesc.format = desc.format;
+            dstMipViewDesc.dimension = WGPUTextureViewDimension_2D;
+            dstMipViewDesc.baseMipLevel = dstMip;
+            dstMipViewDesc.mipLevelCount = 1;
+            dstMipViewDesc.baseArrayLayer = 0;
+            dstMipViewDesc.arrayLayerCount = 1;
+            dstMipViewDesc.aspect = WGPUTextureAspect_All;
+            WGPUTextureView dstMipView = wgpuTextureCreateView(dummyTexture, &dstMipViewDesc);
+
+            bindGroupEntries[2 + dstMip].binding = 2 + dstMip;
+            bindGroupEntries[2 + dstMip].textureView = dstMipView;
+        }
+
+        // Setup the bind group.
+        WGPUBindGroupDescriptor bindGroupDesc{};
+        bindGroupDesc.layout = generateMipsBindGroupLayout;
+        bindGroupDesc.entryCount = std::size(bindGroupEntries);
+        bindGroupDesc.entries = bindGroupEntries;
+        WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(device, &bindGroupDesc);
+
+        wgpuComputePassEncoderSetBindGroup(computePassEncoder, 0, bindGroup, 1, &bufferOffset);
+
+        wgpuComputePassEncoderDispatchWorkgroups(computePassEncoder, DivideByMultiple(dstWidth, 8), DivideByMultiple(dstHeight, 8), 1);
+
+        srcMip += mipCount;
+    }
+
+    // End and submit the command encoder.
+    wgpuComputePassEncoderEnd(computePassEncoder);
+
+    // Create a command buffer.
+    WGPUCommandBufferDescriptor commandBufferDesc{};
+    commandBufferDesc.label = "Generate Mips Command Buffer";
+    WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(commandEncoder, &commandBufferDesc);
+
+    // Submit the command buffer to the queue.
+    wgpuQueueSubmit(queue, 1, &commandBuffer);
+
+    wgpuCommandBufferRelease(commandBuffer);
+    wgpuComputePassEncoderRelease(computePassEncoder);
+    wgpuCommandEncoderRelease(commandEncoder);
 }
 
 WGPUTexture loadTexture(const std::filesystem::path& filePath)
@@ -404,8 +627,8 @@ WGPUTexture loadTexture(const std::filesystem::path& filePath)
     textureDesc.format = WGPUTextureFormat_RGBA8Unorm;
     textureDesc.size = textureSize;
     textureDesc.sampleCount = 1;
-    textureDesc.mipLevelCount = 1;
-    textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    textureDesc.mipLevelCount = static_cast<uint32_t>(std::floor(std::log2(std::max(static_cast<float>(width), static_cast<float>(height))))) + 1u;
+    textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopyDst;
 
     WGPUTexture texture = wgpuDeviceCreateTexture(device, &textureDesc);
 
@@ -425,7 +648,7 @@ WGPUTexture loadTexture(const std::filesystem::path& filePath)
 
     stbi_image_free(data);
 
-    generateMips(texture);
+    generateMips(textureDesc, texture);
 
     return texture;
 }
@@ -484,7 +707,8 @@ void init()
     // Request the adapter.
     WGPURequestAdapterOptions requestAdapaterOptions{};
     requestAdapaterOptions.compatibleSurface = surface;
-    WGPUAdapter adapter = requestAdapter(instance, &requestAdapaterOptions);
+    requestAdapaterOptions.backendType = WGPUBackendType_D3D11;
+    WGPUAdapter adapter = requestAdapter(&requestAdapaterOptions);
 
     if (!adapter)
     {
@@ -714,6 +938,20 @@ void init()
     linearRepeatSamplerDesc.maxAnisotropy = 1;
     linearRepeatSampler = wgpuDeviceCreateSampler(device, &linearRepeatSamplerDesc);
 
+    WGPUSamplerDescriptor linearClampSamplerDesc{};
+    linearClampSamplerDesc.label = "Linear Clamp Sampler";
+    linearClampSamplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+    linearClampSamplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+    linearClampSamplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+    linearClampSamplerDesc.magFilter = WGPUFilterMode_Linear;
+    linearClampSamplerDesc.minFilter = WGPUFilterMode_Linear;
+    linearClampSamplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    linearClampSamplerDesc.lodMinClamp = 0.0f;
+    linearClampSamplerDesc.lodMaxClamp = FLT_MAX;
+    linearClampSamplerDesc.compare = WGPUCompareFunction_Undefined;
+    linearClampSamplerDesc.maxAnisotropy = 1;
+    linearClampSampler = wgpuDeviceCreateSampler(device, &linearClampSamplerDesc);
+
     // Release the shader module.
     wgpuShaderModuleRelease(shaderModule);
 
@@ -730,74 +968,62 @@ void init()
     //@group(0) @binding(6) var linearClampSampler : sampler;
     WGPUBindGroupLayoutEntry generateMipsBindGroupLayoutEntries[] = {
         {
-            .nextInChain = nullptr,
             .binding = 0,
             .visibility = WGPUShaderStage_Compute,
             .buffer = {
                 .type = WGPUBufferBindingType_Uniform,
-                .minBindingSize = sizeof(Mip)
+                .hasDynamicOffset = true,
+                .minBindingSize = sizeof(Mip),
             },
         },
         {
-            .nextInChain = nullptr,
             .binding = 1,
             .visibility = WGPUShaderStage_Compute,
             .texture = {
-                .nextInChain = nullptr,
                 .sampleType = WGPUTextureSampleType_Float,
                 .viewDimension = WGPUTextureViewDimension_2D,
             },
         },
         {
-            .nextInChain = nullptr,
             .binding = 2,
             .visibility = WGPUShaderStage_Compute,
             .storageTexture = {
-                .nextInChain = nullptr,
                 .access = WGPUStorageTextureAccess_WriteOnly,
                 .format = WGPUTextureFormat_RGBA8Unorm,
                 .viewDimension = WGPUTextureViewDimension_2D,
             },
         },
         {
-            .nextInChain = nullptr,
             .binding = 3,
             .visibility = WGPUShaderStage_Compute,
             .storageTexture = {
-                .nextInChain = nullptr,
                 .access = WGPUStorageTextureAccess_WriteOnly,
                 .format = WGPUTextureFormat_RGBA8Unorm,
                 .viewDimension = WGPUTextureViewDimension_2D,
             },
         },
         {
-            .nextInChain = nullptr,
             .binding = 4,
             .visibility = WGPUShaderStage_Compute,
             .storageTexture = {
-                .nextInChain = nullptr,
                 .access = WGPUStorageTextureAccess_WriteOnly,
                 .format = WGPUTextureFormat_RGBA8Unorm,
                 .viewDimension = WGPUTextureViewDimension_2D,
             },
         },
         {
-            .nextInChain = nullptr,
             .binding = 5,
             .visibility = WGPUShaderStage_Compute,
             .storageTexture = {
-                .nextInChain = nullptr,
                 .access = WGPUStorageTextureAccess_WriteOnly,
                 .format = WGPUTextureFormat_RGBA8Unorm,
                 .viewDimension = WGPUTextureViewDimension_2D,
             },
         },
         {
-            .nextInChain = nullptr,
             .binding = 6,
             .visibility = WGPUShaderStage_Compute,
             .sampler = {
-                .nextInChain = nullptr,
                 .type = WGPUSamplerBindingType_Filtering
             },
         },
@@ -840,6 +1066,24 @@ void init()
     wgpuShaderModuleRelease(generateMipsShaderModule);
     // And the pipeline layout
     wgpuPipelineLayoutRelease(generateMipsPipelineLayout);
+
+    // Setup a dynamic uniform buffer for generating mipmaps.
+    WGPUBufferDescriptor generateMipsBufferDescriptor{};
+    generateMipsBufferDescriptor.label = "Generate Mips Buffer";
+    generateMipsBufferDescriptor.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+    generateMipsBufferDescriptor.size = 4ull * 1024ull; // 4KB should be sufficient.
+    generateMipsBuffer = wgpuDeviceCreateBuffer(device, &generateMipsBufferDescriptor);
+
+    // Create a dummy texture to use during mipmap generation.
+    WGPUTextureDescriptor dummyTextureDesc{};
+    dummyTextureDesc.label = "Dummy Texture";
+    dummyTextureDesc.usage = WGPUTextureUsage_StorageBinding;
+    dummyTextureDesc.dimension = WGPUTextureDimension_2D;
+    dummyTextureDesc.size = { 16, 16, 1 };
+    dummyTextureDesc.format = WGPUTextureFormat_RGBA8Unorm;
+    dummyTextureDesc.mipLevelCount = 4;
+    dummyTextureDesc.sampleCount = 1;
+    dummyTexture = wgpuDeviceCreateTexture(device, &dummyTextureDesc);
 
     // Load the texture
     texture = loadTexture("assets/textures/webgpu.png");
@@ -1049,12 +1293,15 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
+    wgpuSamplerRelease(linearClampSampler);
     wgpuSamplerRelease(linearRepeatSampler);
     wgpuTextureViewRelease(textureView);
+    wgpuTextureRelease(dummyTexture);
     wgpuTextureRelease(texture);
     wgpuBufferRelease(vertexBuffer);
     wgpuBufferRelease(indexBuffer);
     wgpuBufferRelease(mvpBuffer);
+    wgpuBufferRelease(generateMipsBuffer);
     wgpuBindGroupLayoutRelease(bindGroupLayout);
     wgpuBindGroupLayoutRelease(generateMipsBindGroupLayout);
     wgpuRenderPipelineRelease(pipeline);

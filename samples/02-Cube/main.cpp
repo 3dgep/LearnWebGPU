@@ -96,7 +96,7 @@ WGPUBuffer mvpBuffer = nullptr;
 Timer timer;
 bool isRunning = true;
 
-WGPUAdapter requestAdapter(WGPUInstance intance, const WGPURequestAdapterOptions* options)
+WGPUAdapter requestAdapter(const WGPURequestAdapterOptions* options)
 {
     // Used by the requestAdapterCallback function to store the adapter and to notify
     // us when the request is complete.
@@ -394,7 +394,7 @@ void init()
     // Request the adapter.
     WGPURequestAdapterOptions requestAdapaterOptions{};
     requestAdapaterOptions.compatibleSurface = surface;
-    WGPUAdapter adapter = requestAdapter(instance, &requestAdapaterOptions);
+    WGPUAdapter adapter = requestAdapter(&requestAdapaterOptions);
 
     if (!adapter)
     {
