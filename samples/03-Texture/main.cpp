@@ -583,7 +583,7 @@ void generateMips(const WGPUTextureDescriptor& desc, WGPUTexture texture)
         bindGroupDesc.entries = bindGroupEntries;
         WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup(device, &bindGroupDesc);
 
-        wgpuComputePassEncoderSetBindGroup(computePassEncoder, 0, bindGroup, 1, &bufferOffset);
+        wgpuComputePassEncoderSetBindGroup(computePassEncoder, 0, bindGroup, 0, nullptr);
 
         wgpuComputePassEncoderDispatchWorkgroups(computePassEncoder, DivideByMultiple(dstWidth, 8), DivideByMultiple(dstHeight, 8), 1);
 
@@ -707,7 +707,7 @@ void init()
     // Request the adapter.
     WGPURequestAdapterOptions requestAdapaterOptions{};
     requestAdapaterOptions.compatibleSurface = surface;
-    requestAdapaterOptions.backendType = WGPUBackendType_D3D11;
+    requestAdapaterOptions.backendType = WGPUBackendType_Vulkan;
     WGPUAdapter adapter = requestAdapter(&requestAdapaterOptions);
 
     if (!adapter)
@@ -972,7 +972,6 @@ void init()
             .visibility = WGPUShaderStage_Compute,
             .buffer = {
                 .type = WGPUBufferBindingType_Uniform,
-                .hasDynamicOffset = true,
                 .minBindingSize = sizeof(Mip),
             },
         },
