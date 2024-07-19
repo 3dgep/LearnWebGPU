@@ -707,7 +707,6 @@ void init()
     // Request the adapter.
     WGPURequestAdapterOptions requestAdapaterOptions{};
     requestAdapaterOptions.compatibleSurface = surface;
-    requestAdapaterOptions.backendType = WGPUBackendType_Vulkan;
     WGPUAdapter adapter = requestAdapter(&requestAdapaterOptions);
 
     if (!adapter)
@@ -909,11 +908,26 @@ void init()
     fragmentState.targets = &colorTargetState;
     pipelineDescriptor.fragment = &fragmentState;
 
+    // Setup stencil face state.
+    WGPUStencilFaceState stencilFaceState{};
+    stencilFaceState.compare = WGPUCompareFunction_Always;
+    stencilFaceState.failOp = WGPUStencilOperation_Keep;
+    stencilFaceState.depthFailOp = WGPUStencilOperation_Keep;
+    stencilFaceState.passOp = WGPUStencilOperation_Keep;
+
     // Depth/Stencil state.
     WGPUDepthStencilState depthStencilState{};
     depthStencilState.format = WGPUTextureFormat_Depth32Float;
     depthStencilState.depthWriteEnabled = true;
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    depthStencilState.stencilFront = stencilFaceState;
+    depthStencilState.stencilBack = stencilFaceState;
+    depthStencilState.stencilReadMask = ~0u;
+    depthStencilState.stencilWriteMask = ~0u;
+    depthStencilState.depthBias = 0;
+    depthStencilState.depthBiasSlopeScale = 0.0f;
+    depthStencilState.depthBiasClamp = 0.0f;
+
     pipelineDescriptor.depthStencil = &depthStencilState;
 
     // Multisampling.
