@@ -5,6 +5,7 @@ project(LearnWebGPU VERSION 0.1.0 LANGUAGES CXX C)
 option( INCLUDE_SAMPLES "Include sample projects." ON )
 
 add_subdirectory(externals)
+add_subdirectory(WebGPUlib)
 
 if( INCLUDE_SAMPLES )
 	add_subdirectory( samples )

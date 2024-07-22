@@ -9,7 +9,7 @@
 	url = https://github.com/eliemichel/sdl2webgpu.git
 [submodule "externals/webgpu"]
 	path = externals/webgpu
-	url = https://github.com/eliemichel/WebGPU-distribution.git
+	url = https://github.com/eliemichel/WebGPU-distribution
 	ignore = dirty
 [submodule "externals/glm"]
 	path = externals/glm

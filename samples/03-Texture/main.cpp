@@ -949,7 +949,7 @@ void init()
     linearRepeatSamplerDesc.lodMinClamp = 0.0f;
     linearRepeatSamplerDesc.lodMaxClamp = FLT_MAX;
     linearRepeatSamplerDesc.compare = WGPUCompareFunction_Undefined;
-    linearRepeatSamplerDesc.maxAnisotropy = 1;
+    linearRepeatSamplerDesc.maxAnisotropy = 8;
     linearRepeatSampler = wgpuDeviceCreateSampler(device, &linearRepeatSamplerDesc);
 
     WGPUSamplerDescriptor linearClampSamplerDesc{};
