@@ -3,16 +3,20 @@ cmake_minimum_required(VERSION 3.29)
 project( WebGPUlib VERSION 0.1.0 LANGUAGES CXX C)
 
 set( INC
+	inc/WebGPUlib/Buffer.hpp
 	inc/WebGPUlib/Device.hpp
 	inc/WebGPUlib/Queue.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
+	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/VertexBuffer.hpp
 )
 
 set( SRC
+	src/Buffer.cpp
 	src/Device.cpp
 	src/Queue.cpp
 	src/IndexBuffer.cpp
+	src/Surface.cpp
 	src/VertexBuffer.cpp
 )
 
@@ -30,5 +34,5 @@ PUBLIC
 
 target_link_libraries( WebGPUlib
 PUBLIC
-	webgpu
+	SDL2::SDL2 webgpu sdl2webgpu
 )

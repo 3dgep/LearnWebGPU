@@ -1,18 +1,24 @@
 #pragma once
 
-#include <webgpu/webgpu.h>
+#include "Buffer.hpp"
+
+#include <cstddef>
 
 namespace WebGPUlib
 {
-    class IndexBuffer
+class IndexBuffer : public Buffer
+{
+public:
+    std::size_t getIndexCount() const
     {
-    public:
+        return indexCount;
+    }
 
-    protected:
-        IndexBuffer(WGPUBuffer&& buffer);
-        virtual ~IndexBuffer();
+protected:
+    IndexBuffer( WGPUBuffer&& buffer, std::size_t indexCount );
+    ~IndexBuffer() override = default;
 
-    private:
-        WGPUBuffer buffer;
-    };
-}
+private:
+    std::size_t indexCount;
+};
+}  // namespace WebGPUlib

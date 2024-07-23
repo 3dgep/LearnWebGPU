@@ -1,22 +1,20 @@
 #include <WebGPUlib/Queue.hpp>
+#include <WebGPUlib/Buffer.hpp>
 
 using namespace WebGPUlib;
 
-#ifdef WEBGPU_BACKEND_DAWN
-void wgpuQueueReference( WGPUQueue queue )
+void Queue::writeBuffer( const std::shared_ptr<Buffer>& buffer, const void* data, std::size_t size ) const
 {
-    wgpuQueueAddRef( queue );
+    wgpuQueueWriteBuffer( queue, buffer->getBuffer(), 0, data, size );
 }
-#endif
 
-Queue::Queue( WGPUQueue _queue )
+Queue::Queue( WGPUQueue&& _queue )  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
 : queue { _queue }
-{
-    wgpuQueueReference( _queue );
-}
+{}
 
 Queue::~Queue()
 {
     if ( queue )
         wgpuQueueRelease( queue );
 }
+

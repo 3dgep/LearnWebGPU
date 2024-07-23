@@ -1,8 +1,11 @@
-#include "WebGPUlib/IndexBuffer.hpp"
+#include "WebGPUlib/Surface.hpp"
 
 #include <WebGPULib/Device.hpp>
 #include <WebGPULib/Queue.hpp>
 #include <WebGPULib/VertexBuffer.hpp>
+#include <WebGPUlib/IndexBuffer.hpp>
+
+#include <sdl2webgpu.h>
 
 #include <cassert>
 #include <filesystem>
@@ -12,26 +15,33 @@ using namespace WebGPUlib;
 
 struct MakeQueue : Queue
 {
-    MakeQueue( WGPUQueue queue )
-    : Queue( queue )
+    MakeQueue( WGPUQueue&& queue )
+    : Queue( std::move( queue ) )  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+struct MakeSurface : Surface
+{
+    MakeSurface( WGPUSurface&& surface, const WGPUSurfaceConfiguration& config )
+    : Surface( std::move( surface ), config )  // NOLINT(performance-move-const-arg)
     {}
 };
 
 struct MakeVertexBuffer : VertexBuffer
 {
-    MakeVertexBuffer( WGPUBuffer&& buffer )
-    : VertexBuffer( std::move(buffer) )  // NOLINT(performance-move-const-arg)
+    MakeVertexBuffer( WGPUBuffer&& buffer, std::size_t vertexCount )
+    : VertexBuffer( std::move( buffer ), vertexCount )  // NOLINT(performance-move-const-arg)
     {}
 };
 
 struct MakeIndexBuffer : IndexBuffer
 {
-    MakeIndexBuffer( WGPUBuffer&& buffer )
-        : IndexBuffer( std::move(buffer) )  // NOLINT(performance-move-const-arg)
+    MakeIndexBuffer( WGPUBuffer&& buffer, std::size_t indexCount )
+    : IndexBuffer( std::move( buffer ), indexCount )  // NOLINT(performance-move-const-arg)
     {}
 };
 
-Device::Device()
+Device::Device( SDL_Window* window )
 {
 #ifdef WEBGPU_BACKEND_EMSCRIPTEN
     // For some reason, the instance descriptor must be null when using emscripten.
@@ -97,7 +107,7 @@ Device::Device()
 
     // The request must complete.
     assert( adapterData.done );
-    WGPUAdapter adapter = adapterData.adapter;
+    adapter = adapterData.adapter;
 
     // Create a minimal device with no special features and default limits.
     WGPUDeviceDescriptor deviceDescriptor {};
@@ -147,9 +157,6 @@ Device::Device()
     }
 #endif
 
-    // We are done with the adapter. It is safe to release it.
-    wgpuAdapterRelease( adapter );
-
     // The request must complete.
     assert( deviceData.done );
     device = deviceData.device;
@@ -160,67 +167,103 @@ Device::Device()
         return;
     }
 
-    // Get the device queue.
-    queue = wgpuDeviceGetQueue( device );
+    // Configure the surface.
+    WGPUSurface _surface = SDL_GetWGPUSurface( instance, window );
 
-    if ( !queue )
+    if ( !surface )
+    {
+        std::cerr << "Failed to get the surface." << std::endl;
+        return;
+    }
+
+    int windowWidth, windowHeight;
+    SDL_GetWindowSize( window, &windowWidth, &windowHeight );
+
+    WGPUSurfaceCapabilities surfaceCapabilities {};
+    wgpuSurfaceGetCapabilities( _surface, adapter, &surfaceCapabilities );
+    WGPUTextureFormat surfaceFormat = surfaceCapabilities.formats[0];
+
+    // Set the surface configuration.
+    WGPUSurfaceConfiguration surfaceConfiguration {};
+    surfaceConfiguration.device          = device;
+    surfaceConfiguration.format          = surfaceFormat;
+    surfaceConfiguration.usage           = WGPUTextureUsage_RenderAttachment;
+    surfaceConfiguration.viewFormatCount = 0;
+    surfaceConfiguration.viewFormats     = nullptr;
+    surfaceConfiguration.alphaMode       = WGPUCompositeAlphaMode_Auto;
+    surfaceConfiguration.width           = windowWidth;
+    surfaceConfiguration.height          = windowHeight;
+
+    wgpuSurfaceConfigure( _surface, &surfaceConfiguration );
+
+    surface = std::make_shared<MakeSurface>( std::move( _surface ),
+                                             surfaceConfiguration );  // NOLINT(performance-move-const-arg)
+
+    // Get the device queue.
+    WGPUQueue _queue = wgpuDeviceGetQueue( device );
+
+    if ( !_queue )
     {
         std::cerr << "Failed to get device queue." << std::endl;
         return;
     }
+
+    queue = std::make_shared<MakeQueue>( std::move( _queue ) );  // NOLINT(performance-move-const-arg)
 }
 
 Device::~Device()
 {
-    if ( queue )
-    {
-        wgpuQueueRelease( queue );
-    }
+    surface.reset();
+    queue.reset();
 
     if ( device )
-    {
         wgpuDeviceRelease( device );
-    }
+
+    if ( adapter )
+        wgpuAdapterRelease( adapter );
 
     if ( instance )
-    {
         wgpuInstanceRelease( instance );
-    }
 }
 
-Device& Device::get()
+std::shared_ptr<Queue> Device::getQueue() const
 {
-    static Device device {};
-    return device;
+    return queue;
 }
 
-std::shared_ptr<Queue> Device::getQueue()
+std::shared_ptr<Surface> Device::getSurface() const
 {
-    return std::make_shared<MakeQueue>( queue );
+    return surface;
 }
 
-std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t size ) const
+std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t size,
+                                                          std::size_t vertexCount ) const
 {
     WGPUBufferDescriptor bufferDescriptor {};
     bufferDescriptor.size  = size;
     bufferDescriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    wgpuQueueWriteBuffer( queue, buffer, 0, vertexData, size );
+    auto vertexBuffer = std::make_shared<MakeVertexBuffer>( std::move( buffer ), vertexCount );  // NOLINT(performance-move-const-arg)
 
-    return std::make_shared<MakeVertexBuffer>( std::move(buffer) );  // NOLINT(performance-move-const-arg)
+    queue->writeBuffer( vertexBuffer, vertexData, size );
+
+    return vertexBuffer;
 }
 
-std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, std::size_t size ) const
+std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, std::size_t size,
+                                                        std::size_t indexCount ) const
 {
     WGPUBufferDescriptor bufferDescriptor {};
     bufferDescriptor.size  = size;
     bufferDescriptor.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
     WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    wgpuQueueWriteBuffer( queue, buffer, 0, indexData, size );
+    auto indexBuffer = std::make_shared<MakeIndexBuffer>( std::move( buffer ), indexCount );  // NOLINT(performance-move-const-arg)
 
-    return std::make_shared<MakeIndexBuffer>( std::move(buffer) );  // NOLINT(performance-move-const-arg)
+    queue->writeBuffer( indexBuffer, indexData, size );
+
+    return indexBuffer;
 }
 
 void Device::poll( bool sleep )

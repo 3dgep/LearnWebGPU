@@ -2,16 +2,23 @@
 
 #include <webgpu/webgpu.h>
 
+#include <memory>
+
 namespace WebGPUlib
 {
-    class Queue
-    {
-    public:
+class Device;
+class Buffer;
 
-    protected:
-        Queue(WGPUQueue queue);
-        virtual ~Queue();
-    private:
-        WGPUQueue queue;
-    };
-}
+class Queue
+{
+public:
+    void writeBuffer( const std::shared_ptr<Buffer>& buffer, const void* data, std::size_t size ) const;
+
+protected:
+    Queue( WGPUQueue&& queue );
+    virtual ~Queue();
+
+private:
+    WGPUQueue queue;
+};
+}  // namespace WebGPUlib

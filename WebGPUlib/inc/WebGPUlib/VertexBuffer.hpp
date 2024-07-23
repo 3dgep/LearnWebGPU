@@ -1,19 +1,26 @@
 #pragma once
 
+#include "Buffer.hpp"
+
 #include <webgpu/webgpu.h>
+
+#include <cstddef>
 
 namespace WebGPUlib
 {
-class VertexBuffer
+class VertexBuffer : public Buffer
 {
 public:
-    WGPUBuffer getBuffer() const;
+    std::size_t getVertexCount() const
+    {
+        return vertexCount;
+    }
 
 protected:
-    VertexBuffer( WGPUBuffer&& buffer );
-    virtual ~VertexBuffer();
+    VertexBuffer( WGPUBuffer&& buffer, std::size_t vertexCount );
+    ~VertexBuffer() override = default;
 
 private:
-    WGPUBuffer buffer;
+    std::size_t vertexCount;
 };
 }  // namespace WebGPUlib
