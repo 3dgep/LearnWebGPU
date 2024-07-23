@@ -12,7 +12,7 @@ set( SRC
 
 add_executable( ${TARGET_NAME} ${SRC} )
 target_link_libraries( ${TARGET_NAME}
-	PRIVATE 00-Common SDL2::SDL2 webgpu sdl2webgpu glm::glm tinyobjloader stb_image stb_image_resize
+	PRIVATE 00-Common SDL2::SDL2 webgpu sdl2webgpu glm::glm tinyobjloader stb_image WebGPUlib
 )
 
 if(EMSCRIPTEN)

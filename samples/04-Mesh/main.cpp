@@ -13,6 +13,8 @@
 #include <webgpu/wgpu.h> // Include non-standard functions.
 #endif
 
+#include <WebGPUlib/Device.hpp>
+
 #include <tiny_obj_loader.h>
 
 #include <Timer.hpp>

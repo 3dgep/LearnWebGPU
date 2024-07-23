@@ -1,10 +1,35 @@
+#include "WebGPUlib/IndexBuffer.hpp"
+
 #include <WebGPULib/Device.hpp>
+#include <WebGPULib/Queue.hpp>
+#include <WebGPULib/VertexBuffer.hpp>
 
 #include <cassert>
 #include <filesystem>
 #include <iostream>
 
 using namespace WebGPUlib;
+
+struct MakeQueue : Queue
+{
+    MakeQueue( WGPUQueue queue )
+    : Queue( queue )
+    {}
+};
+
+struct MakeVertexBuffer : VertexBuffer
+{
+    MakeVertexBuffer( WGPUBuffer&& buffer )
+    : VertexBuffer( std::move(buffer) )  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+struct MakeIndexBuffer : IndexBuffer
+{
+    MakeIndexBuffer( WGPUBuffer&& buffer )
+        : IndexBuffer( std::move(buffer) )  // NOLINT(performance-move-const-arg)
+    {}
+};
 
 Device::Device()
 {
@@ -165,8 +190,37 @@ Device::~Device()
 
 Device& Device::get()
 {
-    static Device device{};
+    static Device device {};
     return device;
+}
+
+std::shared_ptr<Queue> Device::getQueue()
+{
+    return std::make_shared<MakeQueue>( queue );
+}
+
+std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t size ) const
+{
+    WGPUBufferDescriptor bufferDescriptor {};
+    bufferDescriptor.size  = size;
+    bufferDescriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+    WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
+
+    wgpuQueueWriteBuffer( queue, buffer, 0, vertexData, size );
+
+    return std::make_shared<MakeVertexBuffer>( std::move(buffer) );  // NOLINT(performance-move-const-arg)
+}
+
+std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, std::size_t size ) const
+{
+    WGPUBufferDescriptor bufferDescriptor {};
+    bufferDescriptor.size  = size;
+    bufferDescriptor.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
+    WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
+
+    wgpuQueueWriteBuffer( queue, buffer, 0, indexData, size );
+
+    return std::make_shared<MakeIndexBuffer>( std::move(buffer) );  // NOLINT(performance-move-const-arg)
 }
 
 void Device::poll( bool sleep )
