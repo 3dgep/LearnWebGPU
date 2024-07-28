@@ -10,6 +10,7 @@ set( INC
 	inc/WebGPUlib/Queue.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
 	inc/WebGPUlib/Surface.hpp
+	inc/WebGPUlib/Texture.hpp
 	inc/WebGPUlib/VertexBuffer.hpp
 )
 
@@ -19,6 +20,7 @@ set( SRC
 	src/Queue.cpp
 	src/IndexBuffer.cpp
 	src/Surface.cpp
+	src/Texture.cpp
 	src/VertexBuffer.cpp
 )
 
