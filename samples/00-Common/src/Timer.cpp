@@ -82,11 +82,3 @@ void Timer::limitFPS(const std::chrono::high_resolution_clock::duration& duratio
 
     beginFrame = endTime;
 }
-
-
-
-
-
-
-
-

@@ -58,5 +58,12 @@
             "url": "http://localhost:3000/out/build/emscripten/samples/03-Texture/Debug/03-Texture.html",
             "preLaunchTask": "StartServer"
         },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "04-Mesh - Chrome",
+            "url": "http://localhost:3000/out/build/emscripten/samples/04-Mesh/Debug/04-Mesh.html",
+            "preLaunchTask": "StartServer"
+        },
     ]
 }

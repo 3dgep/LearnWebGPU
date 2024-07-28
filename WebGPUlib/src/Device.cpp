@@ -1,10 +1,15 @@
-#include "WebGPUlib/Surface.hpp"
-
-#include <WebGPULib/Device.hpp>
-#include <WebGPULib/Queue.hpp>
-#include <WebGPULib/VertexBuffer.hpp>
+#include <WebGPUlib/Device.hpp>
+#include <WebGPUlib/Queue.hpp>
+#include <WebGPUlib/VertexBuffer.hpp>
 #include <WebGPUlib/IndexBuffer.hpp>
+#include <WebGPUlib/Surface.hpp>
 
+#ifdef __EMSCRIPTEN__
+    #include <emscripten/emscripten.h>
+#endif
+#ifdef WEBGPU_BACKEND_WGPU
+    #include <webgpu/wgpu.h>  // Include non-standard functions.
+#endif
 #include <sdl2webgpu.h>
 
 #include <cassert>
@@ -29,15 +34,15 @@ struct MakeSurface : Surface
 
 struct MakeVertexBuffer : VertexBuffer
 {
-    MakeVertexBuffer( WGPUBuffer&& buffer, std::size_t vertexCount )
-    : VertexBuffer( std::move( buffer ), vertexCount )  // NOLINT(performance-move-const-arg)
+    MakeVertexBuffer( WGPUBuffer&& buffer, std::size_t vertexCount, std::size_t vertexStride )
+    : VertexBuffer( std::move( buffer ), vertexCount, vertexStride )  // NOLINT(performance-move-const-arg)
     {}
 };
 
 struct MakeIndexBuffer : IndexBuffer
 {
-    MakeIndexBuffer( WGPUBuffer&& buffer, std::size_t indexCount )
-    : IndexBuffer( std::move( buffer ), indexCount )  // NOLINT(performance-move-const-arg)
+    MakeIndexBuffer( WGPUBuffer&& buffer, std::size_t indexCount, std::size_t indexStride )
+    : IndexBuffer( std::move( buffer ), indexCount, indexStride )  // NOLINT(performance-move-const-arg)
     {}
 };
 
@@ -99,7 +104,7 @@ Device::Device( SDL_Window* window )
 
     // When using Emscripten, we have to wait for the request to complete.
 #ifdef __EMSCRIPTEN__
-    while ( !userData.done )
+    while ( !adapterData.done )
     {
         emscripten_sleep( 100 );
     }
@@ -117,15 +122,7 @@ Device::Device( SDL_Window* window )
     deviceDescriptor.requiredLimits           = nullptr;  // We don't require any specific limits.
     deviceDescriptor.defaultQueue.nextInChain = nullptr;
     deviceDescriptor.defaultQueue.label       = "Queue";  // You can use anything here.
-    deviceDescriptor.deviceLostCallbackInfo   = {
-          .mode     = WGPUCallbackMode_WaitAnyOnly,
-          .callback = onDeviceLostCallback,
-          .userdata = nullptr,
-    };
-    deviceDescriptor.uncapturedErrorCallbackInfo = {
-        .callback = onGPUErrorCallback,
-        .userdata = nullptr,
-    };
+    deviceDescriptor.deviceLostCallback       = onDeviceLostCallback;
 
     struct DeviceData
     {
@@ -151,7 +148,7 @@ Device::Device( SDL_Window* window )
 
     // When using Emscripten, we have to wait for the request to complete.
 #ifdef __EMSCRIPTEN__
-    while ( !userData.done )
+    while ( !deviceData.done )
     {
         emscripten_sleep( 100 );
     }
@@ -167,10 +164,13 @@ Device::Device( SDL_Window* window )
         return;
     }
 
+    // Set the uncaptured error callback.
+    wgpuDeviceSetUncapturedErrorCallback( device, onUncapturedErrorCallback, nullptr );
+
     // Configure the surface.
     WGPUSurface _surface = SDL_GetWGPUSurface( instance, window );
 
-    if ( !surface )
+    if ( !_surface )
     {
         std::cerr << "Failed to get the surface." << std::endl;
         return;
@@ -193,6 +193,7 @@ Device::Device( SDL_Window* window )
     surfaceConfiguration.alphaMode       = WGPUCompositeAlphaMode_Auto;
     surfaceConfiguration.width           = windowWidth;
     surfaceConfiguration.height          = windowHeight;
+    surfaceConfiguration.presentMode = WGPUPresentMode_Fifo; // This must be Fifo on Emscripten.
 
     wgpuSurfaceConfigure( _surface, &surfaceConfiguration );
 
@@ -236,30 +237,34 @@ std::shared_ptr<Surface> Device::getSurface() const
     return surface;
 }
 
-std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t size,
-                                                          std::size_t vertexCount ) const
+std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t vertexCount,
+                                                          std::size_t vertexStride ) const
 {
+    std::size_t          size = vertexCount * vertexStride;
     WGPUBufferDescriptor bufferDescriptor {};
     bufferDescriptor.size  = size;
     bufferDescriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    auto vertexBuffer = std::make_shared<MakeVertexBuffer>( std::move( buffer ), vertexCount );  // NOLINT(performance-move-const-arg)
+    auto vertexBuffer = std::make_shared<MakeVertexBuffer>( std::move( buffer ), vertexCount,
+                                                            vertexStride );  // NOLINT(performance-move-const-arg)
 
     queue->writeBuffer( vertexBuffer, vertexData, size );
 
     return vertexBuffer;
 }
 
-std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, std::size_t size,
-                                                        std::size_t indexCount ) const
+std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, std::size_t indexCount,
+                                                        std::size_t indexStride ) const
 {
+    std::size_t          size = indexCount * indexStride;
     WGPUBufferDescriptor bufferDescriptor {};
     bufferDescriptor.size  = size;
     bufferDescriptor.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
     WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    auto indexBuffer = std::make_shared<MakeIndexBuffer>( std::move( buffer ), indexCount );  // NOLINT(performance-move-const-arg)
+    auto indexBuffer = std::make_shared<MakeIndexBuffer>( std::move( buffer ), indexCount,
+                                                          indexStride );  // NOLINT(performance-move-const-arg)
 
     queue->writeBuffer( indexBuffer, indexData, size );
 
@@ -280,8 +285,7 @@ void Device::poll( bool sleep )
 #endif
 }
 
-void WebGPUlib::Device::onDeviceLostCallback( WGPUDevice const* device, WGPUDeviceLostReason reason,
-                                              char const* message, void* userdata )
+void WebGPUlib::Device::onDeviceLostCallback( WGPUDeviceLostReason reason, char const* message, void* userdata )
 {
     std::cerr << "Device lost: " << std::hex << reason << std::dec;
     if ( message )
@@ -289,7 +293,7 @@ void WebGPUlib::Device::onDeviceLostCallback( WGPUDevice const* device, WGPUDevi
     std::cerr << std::endl;
 }
 
-void WebGPUlib::Device::onGPUErrorCallback( WGPUErrorType type, const char* message, void* userdata )
+void WebGPUlib::Device::onUncapturedErrorCallback( WGPUErrorType type, const char* message, void* userdata )
 {
     std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
     if ( message )

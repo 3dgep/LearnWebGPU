@@ -14,6 +14,7 @@ set( SRC
 )
 
 add_library( ${TARGET_NAME} STATIC ${INC} ${SRC} )
+
 target_link_libraries( ${TARGET_NAME}
 	PUBLIC webgpu stb_image tinyobjloader
 )

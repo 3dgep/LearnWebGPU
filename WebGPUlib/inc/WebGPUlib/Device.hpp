@@ -1,9 +1,9 @@
 #pragma once
 
-#include "webgpu/webgpu.h"
+#include <webgpu/webgpu.h>
 
 #include <memory>
-#include <span>
+#include <vector>
 
 struct SDL_Window;
 
@@ -28,23 +28,22 @@ public:
     std::shared_ptr<Surface> getSurface() const;
 
     template<typename T>
-    std::shared_ptr<VertexBuffer> createVertexBuffer( std::span<const T> vertices ) const;
-    std::shared_ptr<VertexBuffer> createVertexBuffer( const void* vertexData, std::size_t size,
-                                                      std::size_t vertexCount ) const;
+    std::shared_ptr<VertexBuffer> createVertexBuffer( const std::vector<T>& vertices ) const;
+    std::shared_ptr<VertexBuffer> createVertexBuffer( const void* vertexData, std::size_t vertexCount,
+                                                      std::size_t vertexStride ) const;
 
     template<typename T>
-    std::shared_ptr<IndexBuffer> createIndexBuffer( std::span<const T> indices ) const;
-    std::shared_ptr<IndexBuffer> createIndexBuffer( const void* indexData, std::size_t size,
-                                                    std::size_t indexCount ) const;
+    std::shared_ptr<IndexBuffer> createIndexBuffer( const std::vector<T>& indices ) const;
+    std::shared_ptr<IndexBuffer> createIndexBuffer( const void* indexData, std::size_t indexCount,
+                                                    std::size_t indexStride ) const;
 
     // Poll the GPU to allow work to be done on the device queue.
     void poll( bool sleep = false );
 
 protected:
 private:
-    static void onDeviceLostCallback( WGPUDevice const* device, WGPUDeviceLostReason reason, char const* message,
-                                      void* userdata );
-    static void onGPUErrorCallback( WGPUErrorType type, const char* message, void* userdata );
+    static void onDeviceLostCallback( WGPUDeviceLostReason reason, char const* message, void* userdata );
+    static void onUncapturedErrorCallback( WGPUErrorType type, const char* message, void* userdata );
 
     WGPUInstance             instance = nullptr;
     WGPUAdapter              adapter  = nullptr;
@@ -54,15 +53,15 @@ private:
 };
 
 template<typename T>
-std::shared_ptr<VertexBuffer> Device::createVertexBuffer( std::span<const T> vertices ) const
+std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const std::vector<T>& vertices ) const
 {
-    return createVertexBuffer( vertices.data(), vertices.size_bytes(), vertices.size() );
+    return createVertexBuffer( vertices.data(), vertices.size(), sizeof( T ) );
 }
 
 template<typename T>
-std::shared_ptr<IndexBuffer> Device::createIndexBuffer( std::span<const T> indices ) const
+std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const std::vector<T>& indices ) const
 {
-    return createIndexBuffer( indices.data(), indices.size_bytes(), indices.size() );
+    return createIndexBuffer( indices.data(), indices.size(), sizeof( T ) );
 }
 
 }  // namespace WebGPUlib

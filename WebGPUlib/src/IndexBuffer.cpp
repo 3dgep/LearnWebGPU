@@ -4,8 +4,8 @@
 
 using namespace WebGPUlib;
 
-IndexBuffer::IndexBuffer(WGPUBuffer&& _buffer, std::size_t _indexCount)  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
-    : Buffer( std::move( _buffer) )  // NOLINT(performance-move-const-arg)
-    , indexCount(_indexCount)
+IndexBuffer::IndexBuffer( WGPUBuffer&& _buffer, std::size_t _indexCount, std::size_t _indexStride )
+: Buffer( std::move( _buffer ) )  // NOLINT(performance-move-const-arg)
+, indexCount( _indexCount )
+, indexStride( _indexStride )
 {}
-
