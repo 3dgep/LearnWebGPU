@@ -38,6 +38,9 @@ void Texture::resize( uint32_t width, uint32_t height )
     if ( texture )
         wgpuTextureRelease( texture );
 
+    width = std::max( width, 1u );
+    height = std::max( height, 1u );
+
     descriptor.size = { width, height, 1 };
 
     texture = wgpuDeviceCreateTexture( Device::get().getWGPUDevice(), &descriptor );

@@ -8,6 +8,7 @@ set( INC
 	inc/bitmask_operators.hpp
 	inc/WebGPUlib/Buffer.hpp
 	inc/WebGPUlib/Device.hpp
+	inc/WebGPUlib/GraphicsCommandBuffer.hpp
 	inc/WebGPUlib/Hash.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
 	inc/WebGPUlib/Queue.hpp
@@ -21,6 +22,7 @@ set( INC
 set( SRC
 	src/Buffer.cpp
 	src/Device.cpp
+	src/GraphicsCommandBuffer.cpp
 	src/IndexBuffer.cpp
 	src/Queue.cpp
 	src/RenderTarget.cpp

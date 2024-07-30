@@ -14,7 +14,7 @@ public:
     TextureView& operator=( TextureView&& ) noexcept;
     virtual ~TextureView();
 
-    WGPUTextureView getTextureView() const
+    WGPUTextureView getWGPUTextureView() const
     {
         return textureView;
     }
