@@ -15,8 +15,6 @@ constexpr int WINDOW_WIDTH  = 1280;
 constexpr int WINDOW_HEIGHT = 720;
 const char*   WINDOW_TITLE  = "Mesh";
 
-std::shared_ptr<Device> device;
-
 bool isRunning = true;
 
 void init()
@@ -32,7 +30,7 @@ void init()
         return;
     }
 
-    device = std::make_shared<Device>( window );
+    Device::create( window );
 }
 
 void render() {}
@@ -62,7 +60,7 @@ void update(void* userdata = nullptr)
 
 void destroy()
 {
-    device.reset();
+    Device::destroy();
 }
 
 int main()

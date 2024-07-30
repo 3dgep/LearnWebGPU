@@ -1,6 +1,6 @@
 #pragma once
 
-#include <webgpu/webgpu.h>
+#include "TextureView.hpp"
 
 struct SDL_Window;
 
@@ -11,15 +11,15 @@ class Surface
 public:
     void resize( uint32_t width, uint32_t height );
 
-    WGPUTextureView getNextTextureView();
+    TextureView getNextTextureView();
 
 protected:
     Surface( WGPUSurface&& surface, const WGPUSurfaceConfiguration& config, SDL_Window* window );
     virtual ~Surface();
 
 private:
-    WGPUSurface              surface;
-    WGPUSurfaceConfiguration config;
-    SDL_Window*              window;
+    WGPUSurface              surface = nullptr;
+    WGPUSurfaceConfiguration config{};
+    SDL_Window*              window = nullptr;
 };
 }  // namespace WebGPUlib

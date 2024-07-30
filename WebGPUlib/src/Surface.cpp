@@ -14,7 +14,7 @@ void Surface::resize( uint32_t width, uint32_t height )
     wgpuSurfaceConfigure( surface, &config );
 }
 
-WGPUTextureView Surface::getNextTextureView()
+TextureView Surface::getNextTextureView()
 {
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture( surface, &surfaceTexture );
@@ -39,12 +39,12 @@ WGPUTextureView Surface::getNextTextureView()
             resize( width, height );
         }
 
-        return nullptr;
+        return {};
     }
     default:
         // Handle the error.
         std::cerr << "Error getting surface texture: " << surfaceTexture.status << std::endl;
-        return nullptr;
+        return {};
     }
 
     WGPUTextureViewDescriptor viewDescriptor {};
@@ -56,9 +56,8 @@ WGPUTextureView Surface::getNextTextureView()
     viewDescriptor.baseArrayLayer  = 0;
     viewDescriptor.arrayLayerCount = 1;
     viewDescriptor.aspect          = WGPUTextureAspect_All;
-    WGPUTextureView targetView     = wgpuTextureCreateView( surfaceTexture.texture, &viewDescriptor );
 
-    return targetView;
+    return TextureView{surfaceTexture.texture, &viewDescriptor};
 }
 
 Surface::Surface( WGPUSurface&& _surface,  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)

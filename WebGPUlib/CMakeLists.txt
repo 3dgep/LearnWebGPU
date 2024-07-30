@@ -5,22 +5,28 @@ project( WebGPUlib VERSION 0.1.0 LANGUAGES CXX C)
 set( TARGET_NAME WebGPUlib )
 
 set( INC
+	inc/bitmask_operators.hpp
 	inc/WebGPUlib/Buffer.hpp
 	inc/WebGPUlib/Device.hpp
-	inc/WebGPUlib/Queue.hpp
+	inc/WebGPUlib/Hash.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
+	inc/WebGPUlib/Queue.hpp
+	inc/WebGPUlib/RenderTarget.hpp
 	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/Texture.hpp
+	inc/WebGPUlib/TextureView.hpp
 	inc/WebGPUlib/VertexBuffer.hpp
 )
 
 set( SRC
 	src/Buffer.cpp
 	src/Device.cpp
-	src/Queue.cpp
 	src/IndexBuffer.cpp
+	src/Queue.cpp
+	src/RenderTarget.cpp
 	src/Surface.cpp
 	src/Texture.cpp
+	src/TextureView.cpp
 	src/VertexBuffer.cpp
 )
 

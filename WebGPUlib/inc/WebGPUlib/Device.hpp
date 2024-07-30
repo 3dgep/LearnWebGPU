@@ -18,8 +18,15 @@ class VertexBuffer;
 class Device
 {
 public:
-    Device( SDL_Window* window );
-    ~Device();
+    Device() = delete;
+    Device( const Device& ) = delete;
+    Device(Device&&) = delete;
+    Device& operator=(const Device&) = delete;
+    Device& operator=(Device&&) = delete;
+
+    static void create(SDL_Window* window);
+    static void destroy();
+    static Device& get();
 
     // Get the device queue.
     std::shared_ptr<Queue> getQueue() const;
@@ -40,8 +47,16 @@ public:
     // Poll the GPU to allow work to be done on the device queue.
     void poll( bool sleep = false );
 
-protected:
+    WGPUDevice getWGPUDevice() const noexcept
+    {
+        return device;
+    }
+
 private:
+    friend struct std::default_delete<Device>;
+    Device( SDL_Window* window );
+    ~Device();
+
     static void onDeviceLostCallback( WGPUDeviceLostReason reason, char const* message, void* userdata );
     static void onUncapturedErrorCallback( WGPUErrorType type, const char* message, void* userdata );
 

@@ -1,8 +1,8 @@
 #include <WebGPUlib/Device.hpp>
-#include <WebGPUlib/Queue.hpp>
-#include <WebGPUlib/VertexBuffer.hpp>
 #include <WebGPUlib/IndexBuffer.hpp>
+#include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/Surface.hpp>
+#include <WebGPUlib/VertexBuffer.hpp>
 
 #ifdef __EMSCRIPTEN__
     #include <emscripten/emscripten.h>
@@ -18,6 +18,8 @@
 
 using namespace WebGPUlib;
 
+std::unique_ptr<Device> pDevice { nullptr };
+
 struct MakeQueue : Queue
 {
     MakeQueue( WGPUQueue&& queue )
@@ -27,8 +29,8 @@ struct MakeQueue : Queue
 
 struct MakeSurface : Surface
 {
-    MakeSurface( WGPUSurface&& surface, const WGPUSurfaceConfiguration& config )
-    : Surface( std::move( surface ), config )  // NOLINT(performance-move-const-arg)
+    MakeSurface( WGPUSurface&& surface, const WGPUSurfaceConfiguration& config, SDL_Window* window )
+    : Surface( std::move( surface ), config, window )  // NOLINT(performance-move-const-arg)
     {}
 };
 
@@ -45,6 +47,23 @@ struct MakeIndexBuffer : IndexBuffer
     : IndexBuffer( std::move( buffer ), indexCount, indexStride )  // NOLINT(performance-move-const-arg)
     {}
 };
+
+void Device::create( SDL_Window* window )
+{
+    assert( !pDevice );
+    pDevice = std::unique_ptr<Device>( new Device( window ) );
+}
+
+void Device::destroy()
+{
+    pDevice.reset();
+}
+
+Device& Device::get()
+{
+    assert( pDevice );
+    return *pDevice;
+}
 
 Device::Device( SDL_Window* window )
 {
@@ -193,12 +212,12 @@ Device::Device( SDL_Window* window )
     surfaceConfiguration.alphaMode       = WGPUCompositeAlphaMode_Auto;
     surfaceConfiguration.width           = windowWidth;
     surfaceConfiguration.height          = windowHeight;
-    surfaceConfiguration.presentMode = WGPUPresentMode_Fifo; // This must be Fifo on Emscripten.
+    surfaceConfiguration.presentMode     = WGPUPresentMode_Fifo;  // This must be Fifo on Emscripten.
 
     wgpuSurfaceConfigure( _surface, &surfaceConfiguration );
 
-    surface = std::make_shared<MakeSurface>( std::move( _surface ),
-                                             surfaceConfiguration );  // NOLINT(performance-move-const-arg)
+    surface = std::make_shared<MakeSurface>( std::move( _surface ),  // NOLINT(performance-move-const-arg)
+                                             surfaceConfiguration, window );
 
     // Get the device queue.
     WGPUQueue _queue = wgpuDeviceGetQueue( device );
@@ -246,8 +265,8 @@ std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData
     bufferDescriptor.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    auto vertexBuffer = std::make_shared<MakeVertexBuffer>( std::move( buffer ), vertexCount,
-                                                            vertexStride );  // NOLINT(performance-move-const-arg)
+    auto vertexBuffer = std::make_shared<MakeVertexBuffer>( std::move( buffer ),  // NOLINT(performance-move-const-arg)
+                                                            vertexCount, vertexStride );
 
     queue->writeBuffer( vertexBuffer, vertexData, size );
 
@@ -263,8 +282,8 @@ std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, s
     bufferDescriptor.usage = WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
     WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    auto indexBuffer = std::make_shared<MakeIndexBuffer>( std::move( buffer ), indexCount,
-                                                          indexStride );  // NOLINT(performance-move-const-arg)
+    auto indexBuffer = std::make_shared<MakeIndexBuffer>( std::move( buffer ),  // NOLINT(performance-move-const-arg)
+                                                          indexCount, indexStride );
 
     queue->writeBuffer( indexBuffer, indexData, size );
 
