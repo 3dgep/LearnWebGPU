@@ -7,6 +7,7 @@ set( TARGET_NAME WebGPUlib )
 set( INC
 	inc/bitmask_operators.hpp
 	inc/WebGPUlib/Buffer.hpp
+	inc/WebGPUlib/CommandBuffer.hpp
 	inc/WebGPUlib/Device.hpp
 	inc/WebGPUlib/GraphicsCommandBuffer.hpp
 	inc/WebGPUlib/Hash.hpp
@@ -21,6 +22,7 @@ set( INC
 
 set( SRC
 	src/Buffer.cpp
+	src/CommandBuffer.cpp
 	src/Device.cpp
 	src/GraphicsCommandBuffer.cpp
 	src/IndexBuffer.cpp

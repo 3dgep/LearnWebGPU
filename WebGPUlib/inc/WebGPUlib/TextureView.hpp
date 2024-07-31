@@ -12,7 +12,6 @@ public:
     TextureView( TextureView&& ) noexcept;
     TextureView& operator=( const TextureView& );
     TextureView& operator=( TextureView&& ) noexcept;
-    virtual ~TextureView();
 
     WGPUTextureView getWGPUTextureView() const
     {
@@ -25,9 +24,8 @@ public:
     }
 
 protected:
-    friend class Texture;
-    friend class Surface;
     TextureView( const WGPUTexture& texture, const WGPUTextureViewDescriptor* textureViewDescriptor = nullptr );
+    virtual ~TextureView();
 
 private:
     WGPUTexture               texture     = nullptr;

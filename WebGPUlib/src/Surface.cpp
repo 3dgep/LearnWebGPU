@@ -1,10 +1,25 @@
 #include <WebGPUlib/Surface.hpp>
+#include <WebGPUlib/TextureView.hpp>
 
 #include <SDL2/SDL_video.h>
 
 #include <iostream>
 
 using namespace WebGPUlib;
+
+struct MakeTextureView : TextureView
+{
+    MakeTextureView( const WGPUTexture& texture, const WGPUTextureViewDescriptor* textureViewDescriptor = nullptr )
+    : TextureView( texture, textureViewDescriptor )
+    {}
+};
+
+void Surface::present()
+{
+#ifndef __EMSCRIPTEN__
+    wgpuSurfacePresent( surface );
+#endif
+}
 
 void Surface::resize( uint32_t width, uint32_t height )
 {
@@ -14,7 +29,7 @@ void Surface::resize( uint32_t width, uint32_t height )
     wgpuSurfaceConfigure( surface, &config );
 }
 
-TextureView Surface::getNextTextureView()
+std::shared_ptr<TextureView> Surface::getNextTextureView()
 {
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture( surface, &surfaceTexture );
@@ -39,12 +54,12 @@ TextureView Surface::getNextTextureView()
             resize( width, height );
         }
 
-        return {};
+        return nullptr;
     }
     default:
         // Handle the error.
         std::cerr << "Error getting surface texture: " << surfaceTexture.status << std::endl;
-        return {};
+        return nullptr;
     }
 
     WGPUTextureViewDescriptor viewDescriptor {};
@@ -57,7 +72,11 @@ TextureView Surface::getNextTextureView()
     viewDescriptor.arrayLayerCount = 1;
     viewDescriptor.aspect          = WGPUTextureAspect_All;
 
-    return TextureView{surfaceTexture.texture, &viewDescriptor};
+    std::shared_ptr<TextureView> view = std::make_shared<MakeTextureView>( surfaceTexture.texture, &viewDescriptor );
+
+    wgpuTextureRelease( surfaceTexture.texture );
+
+    return view;
 }
 
 Surface::Surface( WGPUSurface&& _surface,  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)

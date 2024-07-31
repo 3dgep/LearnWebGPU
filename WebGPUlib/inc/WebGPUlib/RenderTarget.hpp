@@ -6,7 +6,7 @@
 namespace WebGPUlib
 {
 
-class Texture;
+class TextureView;
 
 enum class AttachmentPoint
 {
@@ -22,7 +22,7 @@ enum class AttachmentPoint
     NumAttachmentPoints,
 };
 
-using TextureArray = std::array<std::shared_ptr<Texture>, static_cast<std::size_t>(AttachmentPoint::NumAttachmentPoints)>;
+using TextureViewArray = std::array<std::shared_ptr<TextureView>, static_cast<std::size_t>(AttachmentPoint::NumAttachmentPoints)>;
 
 class RenderTarget
 {
@@ -34,15 +34,12 @@ public:
     RenderTarget& operator=( RenderTarget&& )      = delete;
     ~RenderTarget()                                = default;
 
-    void attachTexture( AttachmentPoint attachmentPoint, std::shared_ptr<Texture> texture );
+    void attachTexture( AttachmentPoint attachmentPoint, std::shared_ptr<TextureView> texture );
 
-    std::shared_ptr<Texture> getTexture( AttachmentPoint attachmentPoint ) const;
+    std::shared_ptr<TextureView> getTextureView( AttachmentPoint attachmentPoint ) const;
 
-    const TextureArray& getTextures() const;
-
-    void resize( uint32_t width, uint32_t height );
-
+    const TextureViewArray& getTextureViews() const;
 private:
-    TextureArray textures;
+    TextureViewArray textureViews;
 };
 }  // namespace WebGPUlib

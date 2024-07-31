@@ -35,13 +35,13 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
     std::vector<WGPURenderPassColorAttachment> colorAttachments;
     colorAttachments.reserve( 8 );  // Max color attachment points.
 
-    auto& textures = renderTarget.getTextures();
-    for ( auto& texture: textures )
+    auto& views = renderTarget.getTextureViews();
+    for ( int i = 0; i < 8; ++i )
     {
-        if ( texture )
+        if ( auto& view = views[i] )
         {
             WGPURenderPassColorAttachment colorAttachment {};
-            colorAttachment.view       = texture->getView().getWGPUTextureView();
+            colorAttachment.view       = view->getWGPUTextureView();
             colorAttachment.loadOp     = ( clearFlags & ClearFlags::Color ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
             colorAttachment.storeOp    = WGPUStoreOp_Store;
             colorAttachment.clearValue = clearColor;
@@ -52,11 +52,11 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
         }
     }
 
-    auto& depthStencilTexture = textures[static_cast<std::size_t>( AttachmentPoint::DepthStencil )];
+    auto& depthStencilView = views[static_cast<std::size_t>( AttachmentPoint::DepthStencil )];
     WGPURenderPassDepthStencilAttachment depthStencilAttachment {};
-    if ( depthStencilTexture )
+    if ( depthStencilView )
     {
-        depthStencilAttachment.view = depthStencilTexture->getView().getWGPUTextureView();
+        depthStencilAttachment.view = depthStencilView->getWGPUTextureView();
         depthStencilAttachment.depthLoadOp =
             ( clearFlags & ClearFlags::Depth ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
         depthStencilAttachment.depthStoreOp    = WGPUStoreOp_Store;
@@ -72,12 +72,21 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
     WGPURenderPassDescriptor renderPassDesc {};
     renderPassDesc.colorAttachmentCount     = static_cast<uint32_t>( colorAttachments.size() );
     renderPassDesc.colorAttachments         = colorAttachments.data();
-    renderPassDesc.depthStencilAttachment   = depthStencilTexture ? &depthStencilAttachment : nullptr;
+    renderPassDesc.depthStencilAttachment   = depthStencilView ? &depthStencilAttachment : nullptr;
     renderPassDesc.timestampWrites          = nullptr;
     WGPURenderPassEncoder renderPassEncoder = wgpuCommandEncoderBeginRenderPass( commandEncoder, &renderPassDesc );
 
     return std::make_shared<MakeGraphicsCommandBuffer>(
         std::move( commandEncoder ), std::move( renderPassEncoder ) );  // NOLINT(performance-move-const-arg)
+}
+
+void Queue::submit( std::shared_ptr<CommandBuffer> commandBuffer )
+{
+    WGPUCommandBuffer cb = commandBuffer->finish();
+
+    wgpuQueueSubmit( queue, 1, &cb );
+
+    wgpuCommandBufferRelease( cb );
 }
 
 Queue::Queue( WGPUQueue&& _queue )  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)

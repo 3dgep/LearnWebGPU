@@ -1,18 +1,19 @@
 #pragma once
 
-#include <webgpu/webgpu.h>
+#include "CommandBuffer.hpp"
 
 namespace WebGPUlib
 {
-class GraphicsCommandBuffer
+class GraphicsCommandBuffer : public CommandBuffer
 {
 public:
 protected:
     GraphicsCommandBuffer( WGPUCommandEncoder&& encoder, WGPURenderPassEncoder&& passEncoder );
-    virtual ~GraphicsCommandBuffer();
+    ~GraphicsCommandBuffer() override;
+
+    WGPUCommandBuffer finish() override;
 
 private:
-    WGPUCommandEncoder    commandEncoder = nullptr;
     WGPURenderPassEncoder passEncoder    = nullptr;
 };
 }  // namespace WebGPUlib

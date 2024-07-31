@@ -90,6 +90,7 @@ TextureView::~TextureView()
 {
     if ( textureView )
         wgpuTextureViewRelease( textureView );
+
     if ( texture )
         wgpuTextureRelease( texture );
 }

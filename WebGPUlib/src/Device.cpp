@@ -105,8 +105,12 @@ Device::Device( SDL_Window* window )
         bool        done    = false;
     } adapterData;
 
+    WGPURequestAdapterOptions requestAdapterOptions {};
+    requestAdapterOptions.backendType     = WGPUBackendType_Undefined;  // WGPUBackendType_Vulkan;
+    requestAdapterOptions.powerPreference = WGPUPowerPreference_HighPerformance;
+
     wgpuInstanceRequestAdapter(
-        instance, nullptr,
+        instance, &requestAdapterOptions,
         []( WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* userData ) {
             auto& data = *static_cast<AdapterData*>( userData );
             if ( status == WGPURequestAdapterStatus_Success )

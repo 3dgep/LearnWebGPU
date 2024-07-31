@@ -1,17 +1,23 @@
 #pragma once
 
-#include "TextureView.hpp"
-
 #include <webgpu/webgpu.h>
 
 #include <unordered_map>
 
 namespace WebGPUlib
 {
+class TextureView;
+
 class Texture
 {
 public:
-    TextureView getView( const WGPUTextureViewDescriptor* textureViewDescriptor = nullptr );
+    Texture()                            = delete;
+    Texture( const Texture& )            = delete;
+    Texture( Texture&& ) noexcept;
+    Texture& operator=( const Texture& ) = delete;
+    Texture& operator=( Texture&& ) noexcept;
+
+    std::shared_ptr<TextureView> getView( const WGPUTextureViewDescriptor* textureViewDescriptor = nullptr );
 
     void resize( uint32_t width, uint32_t height );
 
@@ -20,10 +26,10 @@ protected:
     virtual ~Texture();
 
 private:
-    WGPUTexture                                                texture = nullptr;
-    WGPUTextureDescriptor                                      descriptor{};
-    TextureView                                                defaultView;
-    std::unordered_map<WGPUTextureViewDescriptor, TextureView> views;
+    WGPUTexture                                                                 texture = nullptr;
+    WGPUTextureDescriptor                                                       descriptor {};
+    std::shared_ptr<TextureView>                                                defaultView;
+    std::unordered_map<WGPUTextureViewDescriptor, std::shared_ptr<TextureView>> views;
 };
 
 }  // namespace WebGPUlib

@@ -1,4 +1,9 @@
 #include <WebGPUlib/Device.hpp>
+#include <WebGPUlib/Queue.hpp>
+#include <WebGPUlib/RenderTarget.hpp>
+#include <WebGPUlib/Surface.hpp>
+
+#include "Timer.hpp"
 
 #ifdef __EMSCRIPTEN__
     #include <emscripten/html5.h>
@@ -33,10 +38,44 @@ void init()
     Device::create( window );
 }
 
-void render() {}
-
-void update(void* userdata = nullptr)
+void render()
 {
+    auto surface = Device::get().getSurface();
+
+    RenderTarget renderTarget;
+    renderTarget.attachTexture( AttachmentPoint::Color0, surface->getNextTextureView() );
+
+    auto queue = Device::get().getQueue();
+
+    auto commandBuffer =
+        queue->createGraphicsCommandBuffer( renderTarget, ClearFlags::Color, { 0.4f, 0.6f, 0.9f, 1.0f } );
+
+    queue->submit( commandBuffer );
+
+    surface->present();
+
+    // Poll the device to make sure work is done.
+    Device::get().poll();
+}
+
+void update( void* userdata = nullptr )
+{
+    static Timer timer;
+    static double totalTime = 0.0;
+    static uint64_t frames    = 0;
+
+    timer.tick();
+    frames++;
+
+    totalTime += timer.elapsedSeconds();
+    if (totalTime > 1.0)
+    {
+        std::cout << "FPS: " << frames << std::endl;
+        totalTime -= 1.0;
+        frames    = 0;
+    }
+
+
     SDL_Event event;
     while ( SDL_PollEvent( &event ) )
     {
@@ -56,6 +95,8 @@ void update(void* userdata = nullptr)
     }
 
     render();
+
+
 }
 
 void destroy()
