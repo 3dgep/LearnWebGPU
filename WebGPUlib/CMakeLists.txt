@@ -12,6 +12,8 @@ set( INC
 	inc/WebGPUlib/GraphicsCommandBuffer.hpp
 	inc/WebGPUlib/Hash.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
+	inc/WebGPUlib/Material.hpp
+	inc/WebGPUlib/Mesh.hpp
 	inc/WebGPUlib/Queue.hpp
 	inc/WebGPUlib/RenderTarget.hpp
 	inc/WebGPUlib/Surface.hpp
@@ -26,6 +28,8 @@ set( SRC
 	src/Device.cpp
 	src/GraphicsCommandBuffer.cpp
 	src/IndexBuffer.cpp
+	src/Material.cpp
+	src/Mesh.cpp
 	src/Queue.cpp
 	src/RenderTarget.cpp
 	src/Surface.cpp
@@ -48,5 +52,5 @@ PUBLIC
 
 target_link_libraries( ${TARGET_NAME}
 PUBLIC
-	SDL2::SDL2 webgpu sdl2webgpu
+	SDL2::SDL2 glm::glm webgpu sdl2webgpu
 )

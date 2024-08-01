@@ -18,14 +18,14 @@ class VertexBuffer;
 class Device
 {
 public:
-    Device() = delete;
-    Device( const Device& ) = delete;
-    Device(Device&&) = delete;
-    Device& operator=(const Device&) = delete;
-    Device& operator=(Device&&) = delete;
+    Device()                           = delete;
+    Device( const Device& )            = delete;
+    Device( Device&& )                 = delete;
+    Device& operator=( const Device& ) = delete;
+    Device& operator=( Device&& )      = delete;
 
-    static void create(SDL_Window* window);
-    static void destroy();
+    static void    create( SDL_Window* window );
+    static void    destroy();
     static Device& get();
 
     // Get the device queue.
@@ -44,8 +44,14 @@ public:
     std::shared_ptr<IndexBuffer> createIndexBuffer( const void* indexData, std::size_t indexCount,
                                                     std::size_t indexStride ) const;
 
-    // Poll the GPU to allow work to be done on the device queue.
+
+
     void poll( bool sleep = false );
+
+    WGPUInstance getWGPUInstance() const noexcept
+    {
+        return instance;
+    }
 
     WGPUDevice getWGPUDevice() const noexcept
     {
