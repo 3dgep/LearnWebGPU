@@ -19,7 +19,7 @@ struct MakeGraphicsCommandBuffer : GraphicsCommandBuffer
 
 void Queue::writeBuffer( const std::shared_ptr<Buffer>& buffer, const void* data, std::size_t size ) const
 {
-    wgpuQueueWriteBuffer( queue, buffer->getBuffer(), 0, data, size );
+    wgpuQueueWriteBuffer( queue, buffer->getWGPUBuffer(), 0, data, size );
 }
 
 std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const RenderTarget& renderTarget,

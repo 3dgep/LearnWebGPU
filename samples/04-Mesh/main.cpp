@@ -22,6 +22,8 @@ const char*   WINDOW_TITLE  = "Mesh";
 
 bool isRunning = true;
 
+std::shared_ptr<Mesh> cubeMesh;
+
 void init()
 {
     SDL_Init( SDL_INIT_VIDEO );
@@ -36,6 +38,8 @@ void init()
     }
 
     Device::create( window );
+
+    cubeMesh = Device::get().createCube();
 }
 
 void render()

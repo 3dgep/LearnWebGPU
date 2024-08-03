@@ -1,4 +1,5 @@
 #include <WebGPUlib/Material.hpp>
+#include <utility>
 
 using namespace WebGPUlib;
 
@@ -74,5 +75,54 @@ float Material::getSpecularPower() const noexcept
 void Material::setSpecularPower( float specularPower ) noexcept
 {
     properties->specularPower = specularPower;
+}
+
+float Material::getIndexOfRefraction() const noexcept
+{
+    return properties->indexOfRefraction;
+}
+
+void Material::setIndexOfRefraction( float indexOfRefraction ) noexcept
+{
+    properties->indexOfRefraction = indexOfRefraction;
+}
+
+float Material::getBumpIntensity() const noexcept
+{
+    return properties->bumpIntensity;
+}
+
+void Material::setBumpIntensity( float bumpIntensity ) noexcept
+{
+    properties->bumpIntensity = bumpIntensity;
+}
+
+std::shared_ptr<Texture> Material::getTexture( TextureSlot slot ) const
+{
+    auto iter = textures.find( slot );
+    if (iter != textures.end())
+        return iter->second;
+
+    return nullptr;
+}
+
+void Material::setTexture( TextureSlot slot, std::shared_ptr<Texture> texture )
+{
+    textures[slot] = std::move( texture );
+}
+
+bool Material::isTransparent() const noexcept
+{
+    return properties->opacity < 1.0f || textures.find( TextureSlot::Opacity ) != textures.end();
+}
+
+const MaterialProperties& Material::getProperties() const noexcept
+{
+    return *properties;
+}
+
+void Material::setProperties( const MaterialProperties& _properties ) noexcept
+{
+    *properties = _properties;
 }
 

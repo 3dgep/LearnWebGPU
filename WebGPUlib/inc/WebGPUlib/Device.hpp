@@ -12,6 +12,7 @@ namespace WebGPUlib
 
 class Queue;
 class IndexBuffer;
+class Mesh;
 class Surface;
 class VertexBuffer;
 
@@ -34,6 +35,8 @@ public:
     // Get the surface.
     std::shared_ptr<Surface> getSurface() const;
 
+    std::shared_ptr<Mesh> createCube( float size = 1.0f, bool reverseWinding = false ) const;
+
     template<typename T>
     std::shared_ptr<VertexBuffer> createVertexBuffer( const std::vector<T>& vertices ) const;
     std::shared_ptr<VertexBuffer> createVertexBuffer( const void* vertexData, std::size_t vertexCount,
@@ -43,8 +46,6 @@ public:
     std::shared_ptr<IndexBuffer> createIndexBuffer( const std::vector<T>& indices ) const;
     std::shared_ptr<IndexBuffer> createIndexBuffer( const void* indexData, std::size_t indexCount,
                                                     std::size_t indexStride ) const;
-
-
 
     void poll( bool sleep = false );
 

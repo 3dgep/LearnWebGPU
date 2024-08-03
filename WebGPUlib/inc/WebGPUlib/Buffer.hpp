@@ -7,16 +7,23 @@ namespace WebGPUlib
 class Buffer
 {
 public:
-    WGPUBuffer getBuffer() const
+    Buffer()                    = default;
+    Buffer( const Buffer& )     = delete;
+    Buffer( Buffer&& ) noexcept = delete;
+
+    Buffer& operator=( const Buffer& )     = delete;
+    Buffer& operator=( Buffer&& ) noexcept = delete;
+
+    WGPUBuffer getWGPUBuffer() const
     {
         return buffer;
     }
 
 protected:
-    Buffer(WGPUBuffer&& buffer);
+    Buffer( WGPUBuffer&& buffer );
     virtual ~Buffer();
 
 private:
-    WGPUBuffer buffer;
+    WGPUBuffer buffer = nullptr;
 };
 }  // namespace WebGPUlib

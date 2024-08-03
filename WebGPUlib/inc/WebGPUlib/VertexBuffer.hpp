@@ -9,6 +9,12 @@ namespace WebGPUlib
 class VertexBuffer : public Buffer
 {
 public:
+    VertexBuffer()                                     = default;
+    VertexBuffer( const VertexBuffer& )                = delete;
+    VertexBuffer( VertexBuffer&& ) noexcept            = delete;
+    VertexBuffer& operator=( const VertexBuffer& )     = delete;
+    VertexBuffer& operator=( VertexBuffer&& ) noexcept = delete;
+
     std::size_t getVertexCount() const
     {
         return vertexCount;
@@ -17,6 +23,11 @@ public:
     std::size_t getVertexStride() const
     {
         return vertexStride;
+    }
+
+    std::size_t getSize() const
+    {
+        return vertexCount * vertexStride;
     }
 
 protected:

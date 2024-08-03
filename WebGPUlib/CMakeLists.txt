@@ -19,6 +19,8 @@ set( INC
 	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/Texture.hpp
 	inc/WebGPUlib/TextureView.hpp
+	inc/WebGPUlib/UniformBuffer.hpp
+	inc/WebGPUlib/Vertex.hpp
 	inc/WebGPUlib/VertexBuffer.hpp
 )
 
@@ -35,6 +37,8 @@ set( SRC
 	src/Surface.cpp
 	src/Texture.cpp
 	src/TextureView.cpp
+	src/UniformBuffer.cpp
+	src/Vertex.cpp
 	src/VertexBuffer.cpp
 )
 

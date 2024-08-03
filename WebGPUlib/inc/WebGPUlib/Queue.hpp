@@ -25,6 +25,8 @@ enum class ClearFlags
 class Queue
 {
 public:
+    template<typename T>
+    void writeBuffer( const std::shared_ptr<Buffer>& buffer, const T& data ) const;
     void writeBuffer( const std::shared_ptr<Buffer>& buffer, const void* data, std::size_t size ) const;
 
     std::shared_ptr<GraphicsCommandBuffer> createGraphicsCommandBuffer( const RenderTarget& renderTarget,
@@ -47,6 +49,13 @@ protected:
 private:
     WGPUQueue queue;
 };
+
+template<typename T>
+void Queue::writeBuffer( const std::shared_ptr<Buffer>& buffer, const T& data ) const
+{
+    writeBuffer( buffer, &data, sizeof( T ) );
+}
+
 }  // namespace WebGPUlib
 
 template<>

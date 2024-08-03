@@ -99,7 +99,7 @@ public:
     void  setSpecularPower( float specularPower ) noexcept;
 
     float getIndexOfRefraction() const noexcept;
-    void  setIndexOfRefractoin( float indexOfRefraction ) noexcept;
+    void  setIndexOfRefraction( float indexOfRefraction ) noexcept;
 
     float getBumpIntensity() const noexcept;
     void  setBumpIntensity( float bumpIntensity ) noexcept;
