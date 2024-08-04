@@ -68,5 +68,5 @@ PUBLIC
 
 target_link_libraries( ${TARGET_NAME}
 PUBLIC
-	SDL2::SDL2 glm::glm webgpu sdl2webgpu
+	SDL2::SDL2 glm::glm webgpu sdl2webgpu stb_image
 )

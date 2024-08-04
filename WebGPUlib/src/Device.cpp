@@ -4,6 +4,8 @@
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/Sampler.hpp>
 #include <WebGPUlib/Surface.hpp>
+#include <WebGPUlib/Texture.hpp>
+#include <WebGPUlib/UniformBuffer.hpp>
 #include <WebGPUlib/Vertex.hpp>
 #include <WebGPUlib/VertexBuffer.hpp>
 
@@ -13,11 +15,10 @@
 #ifdef WEBGPU_BACKEND_WGPU
     #include <webgpu/wgpu.h>  // Include non-standard functions.
 #endif
-#include "WebGPUlib/UniformBuffer.hpp"
-
-#include <sdl2webgpu.h>
 
 #include <glm/vec3.hpp>
+#include <sdl2webgpu.h>
+#include <stb_image.h>
 
 #include <cassert>
 #include <filesystem>
@@ -66,6 +67,13 @@ struct MakeSampler : Sampler
 {
     MakeSampler( WGPUSampler&& sampler, const WGPUSamplerDescriptor& samplerDescriptor )
     : Sampler( std::move( sampler ), samplerDescriptor )  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+struct MakeTexture : Texture
+{
+    MakeTexture( WGPUTexture&& texture, const WGPUTextureDescriptor& textureDescriptor )
+    : Texture( std::move( texture ), textureDescriptor )
     {}
 };
 
@@ -350,6 +358,70 @@ std::shared_ptr<Mesh> Device::createCube( float size, bool _reverseWinding ) con
     return std::make_shared<Mesh>( vertexBuffer, indexBuffer );
 }
 
+std::shared_ptr<Texture> Device::createTexture( const WGPUTextureDescriptor& textureDescriptor )
+{
+    WGPUTexture texture = wgpuDeviceCreateTexture( device, &textureDescriptor );
+
+    return std::make_shared<Texture>( std::move( texture ), textureDescriptor );  // NOLINT(performance-move-const-arg)
+}
+
+std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& filePath )
+{
+    // Load the texture
+    int            width, height, channels;
+    unsigned char* data = stbi_load( filePath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha );
+
+    if ( !data )
+    {
+        std::cerr << "Failed to load texture: " << filePath << std::endl;
+        return nullptr;
+    }
+
+    const WGPUExtent3D textureSize { static_cast<uint32_t>( width ), static_cast<uint32_t>( height ), 1u };
+
+    // Create the texture object.
+    WGPUTextureDescriptor textureDesc {};
+    textureDesc.label       = filePath.filename().string().c_str();
+    textureDesc.dimension   = WGPUTextureDimension_2D;
+    textureDesc.format      = WGPUTextureFormat_RGBA8Unorm;
+    textureDesc.size        = textureSize;
+    textureDesc.sampleCount = 1;
+    textureDesc.mipLevelCount =
+        static_cast<uint32_t>(
+            std::floor( std::log2( std::max( static_cast<float>( width ), static_cast<float>( height ) ) ) ) ) +
+        1u;
+    textureDesc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopyDst;
+
+    WGPUTexture texture = wgpuDeviceCreateTexture( device, &textureDesc );
+
+    // Copy mip level 0.
+    WGPUImageCopyTexture dst {};
+    dst.texture  = texture;
+    dst.mipLevel = 0;
+    dst.origin   = { 0, 0, 0 };
+    dst.aspect   = WGPUTextureAspect_All;
+
+    WGPUTextureDataLayout src {};
+    src.offset       = 0;
+    src.bytesPerRow  = 4 * width;
+    src.rowsPerImage = height;
+
+    auto tex = std::make_shared<MakeTexture>( std::move( texture ), textureDesc );
+
+    queue->writeTexture( *tex, 0, data, ( static_cast<std::size_t>( width ) * height * 4u ) );
+
+    stbi_image_free( data );
+
+    generateMips( *tex );
+
+    return tex;
+}
+
+void Device::generateMips( const Texture& texture )
+{
+    // TODO:
+}
+
 std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t vertexCount,
                                                           std::size_t vertexStride ) const
 {
@@ -362,7 +434,8 @@ std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData
     auto vertexBuffer = std::make_shared<MakeVertexBuffer>( std::move( buffer ),  // NOLINT(performance-move-const-arg)
                                                             vertexCount, vertexStride );
 
-    queue->writeBuffer( vertexBuffer, vertexData, size );
+    if ( vertexData )
+        queue->writeBuffer( vertexBuffer, vertexData, size );
 
     return vertexBuffer;
 }
@@ -379,7 +452,8 @@ std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, s
     auto indexBuffer = std::make_shared<MakeIndexBuffer>( std::move( buffer ),  // NOLINT(performance-move-const-arg)
                                                           indexCount, indexStride );
 
-    queue->writeBuffer( indexBuffer, indexData, size );
+    if ( indexData )
+        queue->writeBuffer( indexBuffer, indexData, size );
 
     return indexBuffer;
 }
@@ -396,9 +470,7 @@ std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const void* data, st
         std::make_shared<MakeUniformBuffer>( std::move( buffer ), size );  // NOLINT(performance-move-const-arg)
 
     if ( data )
-    {
         queue->writeBuffer( uniformBuffer, data, size );
-    }
 
     return uniformBuffer;
 }
@@ -407,7 +479,7 @@ std::shared_ptr<Sampler> Device::createSampler( const WGPUSamplerDescriptor& sam
 {
     WGPUSampler sampler = wgpuDeviceCreateSampler( device, &samplerDescriptor );
 
-    return std::make_shared<MakeSampler>( std::move( sampler ), // NOLINT(performance-move-const-arg)
+    return std::make_shared<MakeSampler>( std::move( sampler ),  // NOLINT(performance-move-const-arg)
                                           samplerDescriptor );
 }
 

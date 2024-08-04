@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <webgpu/webgpu.h>
 
 #include <memory>
@@ -15,6 +16,7 @@ class IndexBuffer;
 class Mesh;
 class Sampler;
 class Surface;
+class Texture;
 class UniformBuffer;
 class VertexBuffer;
 
@@ -38,6 +40,12 @@ public:
     std::shared_ptr<Surface> getSurface() const;
 
     std::shared_ptr<Mesh> createCube( float size = 1.0f, bool reverseWinding = false ) const;
+
+    std::shared_ptr<Texture> createTexture( const WGPUTextureDescriptor& textureDescriptor );
+
+    std::shared_ptr<Texture> loadTexture( const std::filesystem::path& filePath );
+
+    void generateMips( const Texture& texture );
 
     template<typename T>
     std::shared_ptr<VertexBuffer> createVertexBuffer( const std::vector<T>& vertices ) const;

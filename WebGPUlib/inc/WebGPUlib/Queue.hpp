@@ -26,8 +26,10 @@ class Queue
 {
 public:
     template<typename T>
-    void writeBuffer( const std::shared_ptr<Buffer>& buffer, const T& data ) const;
-    void writeBuffer( const std::shared_ptr<Buffer>& buffer, const void* data, std::size_t size ) const;
+    void writeBuffer( Buffer& buffer, const T& data ) const;
+    void writeBuffer( const Buffer& buffer, const void* data, std::size_t size ) const;
+
+    void writeTexture( Texture& texture, uint32_t mip, const void* data, std::size_t size ) const;
 
     std::shared_ptr<GraphicsCommandBuffer> createGraphicsCommandBuffer( const RenderTarget& renderTarget,
                                                                         ClearFlags       clearFlags = ClearFlags::All,
@@ -51,7 +53,7 @@ private:
 };
 
 template<typename T>
-void Queue::writeBuffer( const std::shared_ptr<Buffer>& buffer, const T& data ) const
+void Queue::writeBuffer( Buffer& buffer, const T& data ) const
 {
     writeBuffer( buffer, &data, sizeof( T ) );
 }

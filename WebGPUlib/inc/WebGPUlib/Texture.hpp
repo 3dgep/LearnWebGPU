@@ -21,6 +21,16 @@ public:
 
     void resize( uint32_t width, uint32_t height );
 
+    WGPUTexture getWGPUTexture() const noexcept
+    {
+        return texture;
+    }
+
+    WGPUTextureDescriptor getWGPUTextureDescriptor() const noexcept
+    {
+        return descriptor;
+    }
+
 protected:
     Texture( WGPUTexture&& texture, const WGPUTextureDescriptor& descriptor );
     virtual ~Texture();
