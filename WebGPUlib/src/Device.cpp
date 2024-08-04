@@ -12,6 +12,8 @@
 #ifdef WEBGPU_BACKEND_WGPU
     #include <webgpu/wgpu.h>  // Include non-standard functions.
 #endif
+#include "WebGPUlib/UniformBuffer.hpp"
+
 #include <sdl2webgpu.h>
 
 #include <glm/vec3.hpp>
@@ -49,6 +51,13 @@ struct MakeIndexBuffer : IndexBuffer
 {
     MakeIndexBuffer( WGPUBuffer&& buffer, std::size_t indexCount, std::size_t indexStride )
     : IndexBuffer( std::move( buffer ), indexCount, indexStride )  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+struct MakeUniformBuffer : UniformBuffer
+{
+    MakeUniformBuffer( WGPUBuffer&& buffer, std::size_t size )
+        : UniformBuffer( std::move(buffer), size )
     {}
 };
 
@@ -365,6 +374,24 @@ std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, s
     queue->writeBuffer( indexBuffer, indexData, size );
 
     return indexBuffer;
+}
+
+std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const void* data, std::size_t size ) const
+{
+    WGPUBufferDescriptor bufferDescriptor {};
+    bufferDescriptor.size  = size;
+    bufferDescriptor.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+    bufferDescriptor.mappedAtCreation = false;
+    WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
+
+    auto uniformBuffer = std::make_shared<MakeUniformBuffer>( std::move( buffer ), size );
+
+    if ( data )
+    {
+        queue->writeBuffer( uniformBuffer, data, size );
+    }
+
+    return uniformBuffer;
 }
 
 void Device::poll( bool sleep )

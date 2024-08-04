@@ -16,7 +16,12 @@ public:
     Mesh() = default;
     explicit Mesh( std::shared_ptr<VertexBuffer> vertexBuffer, std::shared_ptr<IndexBuffer> indexBuffer = nullptr,
                    std::shared_ptr<Material> material = nullptr );
-    ~Mesh() = default;
+    Mesh( const Mesh& )     = delete;
+    Mesh( Mesh&& ) noexcept = default;
+    ~Mesh()                 = default;
+
+    Mesh& operator=( const Mesh& )     = delete;
+    Mesh& operator=( Mesh&& ) noexcept = default;
 
     void                          setVertexBuffer( uint32_t slot, std::shared_ptr<VertexBuffer> vertexBuffer );
     std::shared_ptr<VertexBuffer> getVertexBuffer( uint32_t slot ) const;

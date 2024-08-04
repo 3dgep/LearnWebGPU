@@ -14,6 +14,7 @@ class Queue;
 class IndexBuffer;
 class Mesh;
 class Surface;
+class UniformBuffer;
 class VertexBuffer;
 
 class Device
@@ -46,6 +47,10 @@ public:
     std::shared_ptr<IndexBuffer> createIndexBuffer( const std::vector<T>& indices ) const;
     std::shared_ptr<IndexBuffer> createIndexBuffer( const void* indexData, std::size_t indexCount,
                                                     std::size_t indexStride ) const;
+
+    template<typename T>
+    std::shared_ptr<UniformBuffer> createUniformBuffer( const T& data ) const;
+    std::shared_ptr<UniformBuffer> createUniformBuffer( const void* data, std::size_t size ) const;
 
     void poll( bool sleep = false );
 
@@ -84,6 +89,12 @@ template<typename T>
 std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const std::vector<T>& indices ) const
 {
     return createIndexBuffer( indices.data(), indices.size(), sizeof( T ) );
+}
+
+template<typename T>
+std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const T& data ) const
+{
+    return createUniformBuffer( &data, sizeof( T ) );
 }
 
 }  // namespace WebGPUlib

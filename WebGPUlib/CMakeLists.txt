@@ -10,6 +10,7 @@ set( INC
 	inc/WebGPUlib/CommandBuffer.hpp
 	inc/WebGPUlib/Device.hpp
 	inc/WebGPUlib/GraphicsCommandBuffer.hpp
+	inc/WebGPUlib/GraphicsPipelineState.hpp
 	inc/WebGPUlib/Hash.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
 	inc/WebGPUlib/Material.hpp
@@ -18,6 +19,7 @@ set( INC
 	inc/WebGPUlib/RenderTarget.hpp
 	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/Texture.hpp
+	inc/WebGPUlib/TextureUnlitPipelineState.hpp
 	inc/WebGPUlib/TextureView.hpp
 	inc/WebGPUlib/UniformBuffer.hpp
 	inc/WebGPUlib/Vertex.hpp
@@ -29,6 +31,7 @@ set( SRC
 	src/CommandBuffer.cpp
 	src/Device.cpp
 	src/GraphicsCommandBuffer.cpp
+	src/GraphicsPipelineState.cpp
 	src/IndexBuffer.cpp
 	src/Material.cpp
 	src/Mesh.cpp
@@ -36,13 +39,20 @@ set( SRC
 	src/RenderTarget.cpp
 	src/Surface.cpp
 	src/Texture.cpp
+	src/TextureUnlitPipelineState.cpp
 	src/TextureView.cpp
 	src/UniformBuffer.cpp
 	src/Vertex.cpp
 	src/VertexBuffer.cpp
 )
 
-add_library( ${TARGET_NAME} STATIC ${SRC} ${INC} )
+set( SHADERS
+	shaders/TextureUnlitShader.wgsl
+)
+
+add_library( ${TARGET_NAME} STATIC ${INC} ${SRC} ${SHADERS} )
+
+source_group( "Shaders" FILES ${SHADERS} )
 
 target_compile_features( WebGPUlib
 PUBLIC

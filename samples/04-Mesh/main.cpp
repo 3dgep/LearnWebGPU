@@ -2,8 +2,9 @@
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/RenderTarget.hpp>
 #include <WebGPUlib/Surface.hpp>
+#include <WebGPUlib/UniformBuffer.hpp>
 
-#include "Timer.hpp"
+#include <Timer.hpp>
 
 #ifdef __EMSCRIPTEN__
     #include <emscripten/html5.h>
@@ -11,6 +12,8 @@
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
+
+#include <glm/mat4x4.hpp>
 
 #include <iostream>
 
@@ -23,6 +26,7 @@ const char*   WINDOW_TITLE  = "Mesh";
 bool isRunning = true;
 
 std::shared_ptr<Mesh> cubeMesh;
+std::shared_ptr<UniformBuffer> mvpBuffer;
 
 void init()
 {
@@ -39,6 +43,8 @@ void init()
 
     Device::create( window );
 
+    // Create a uniform buffer large enough to hold a single 4x4 matrix.
+    mvpBuffer = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
     cubeMesh = Device::get().createCube();
 }
 
