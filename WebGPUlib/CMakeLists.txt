@@ -17,6 +17,7 @@ set( INC
 	inc/WebGPUlib/Mesh.hpp
 	inc/WebGPUlib/Queue.hpp
 	inc/WebGPUlib/RenderTarget.hpp
+	inc/WebGPUlib/Sampler.hpp
 	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/Texture.hpp
 	inc/WebGPUlib/TextureUnlitPipelineState.hpp
@@ -37,6 +38,7 @@ set( SRC
 	src/Mesh.cpp
 	src/Queue.cpp
 	src/RenderTarget.cpp
+	src/Sampler.cpp
 	src/Surface.cpp
 	src/Texture.cpp
 	src/TextureUnlitPipelineState.cpp
@@ -56,7 +58,7 @@ source_group( "Shaders" FILES ${SHADERS} )
 
 target_compile_features( WebGPUlib
 PUBLIC
-	cxx_std_17
+	cxx_std_20
 )
 
 target_include_directories( ${TARGET_NAME}

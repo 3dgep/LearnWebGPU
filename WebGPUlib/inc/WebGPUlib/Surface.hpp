@@ -19,6 +19,11 @@ public:
 
     std::shared_ptr<TextureView> getNextTextureView();
 
+    WGPUTextureFormat getSurfaceFormat() const
+    {
+        return config.format;
+    }
+
 protected:
     Surface( WGPUSurface&& surface, const WGPUSurfaceConfiguration& config, SDL_Window* window );
     virtual ~Surface();

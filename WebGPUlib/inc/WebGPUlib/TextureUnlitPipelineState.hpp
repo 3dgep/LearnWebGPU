@@ -10,9 +10,22 @@ class Surface;
 class TextureUnlitPipelineState : public GraphicsPipelineState
 {
 public:
+    TextureUnlitPipelineState( const TextureUnlitPipelineState& )     = delete;
+    TextureUnlitPipelineState( TextureUnlitPipelineState&& ) noexcept = delete;
+
+    TextureUnlitPipelineState& operator=( const TextureUnlitPipelineState& )     = delete;
+    TextureUnlitPipelineState& operator=( TextureUnlitPipelineState&& ) noexcept = delete;
+
+    WGPUBindGroupLayout getBindGroupLayout() const noexcept
+    {
+        return bindGroupLayout;
+    }
+
 protected:
     TextureUnlitPipelineState();
+    ~TextureUnlitPipelineState() override;
 
 private:
+    WGPUBindGroupLayout bindGroupLayout = nullptr;
 };
 }  // namespace WebGPUlib

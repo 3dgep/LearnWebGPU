@@ -2,6 +2,7 @@
 #include <WebGPUlib/IndexBuffer.hpp>
 #include <WebGPUlib/Mesh.hpp>
 #include <WebGPUlib/Queue.hpp>
+#include <WebGPUlib/Sampler.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/Vertex.hpp>
 #include <WebGPUlib/VertexBuffer.hpp>
@@ -57,7 +58,14 @@ struct MakeIndexBuffer : IndexBuffer
 struct MakeUniformBuffer : UniformBuffer
 {
     MakeUniformBuffer( WGPUBuffer&& buffer, std::size_t size )
-        : UniformBuffer( std::move(buffer), size )
+    : UniformBuffer( std::move( buffer ), size )  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+struct MakeSampler : Sampler
+{
+    MakeSampler( WGPUSampler&& sampler, const WGPUSamplerDescriptor& samplerDescriptor )
+    : Sampler( std::move( sampler ), samplerDescriptor )  // NOLINT(performance-move-const-arg)
     {}
 };
 
@@ -293,7 +301,7 @@ std::shared_ptr<Mesh> Device::createCube( float size, bool _reverseWinding ) con
 
     // 8 cube vertices.
     const glm::vec3 p[] = { { s, s, -s }, { s, s, s },   { s, -s, s },   { s, -s, -s },
-                                { -s, s, s }, { -s, s, -s }, { -s, -s, -s }, { -s, -s, s } };
+                            { -s, s, s }, { -s, s, -s }, { -s, -s, -s }, { -s, -s, s } };
 
     // 6 face normals.
     constexpr glm::vec3 n[] = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
@@ -379,12 +387,13 @@ std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, s
 std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const void* data, std::size_t size ) const
 {
     WGPUBufferDescriptor bufferDescriptor {};
-    bufferDescriptor.size  = size;
-    bufferDescriptor.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+    bufferDescriptor.size             = size;
+    bufferDescriptor.usage            = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
     bufferDescriptor.mappedAtCreation = false;
-    WGPUBuffer buffer      = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
+    WGPUBuffer buffer                 = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
 
-    auto uniformBuffer = std::make_shared<MakeUniformBuffer>( std::move( buffer ), size );
+    auto uniformBuffer =
+        std::make_shared<MakeUniformBuffer>( std::move( buffer ), size );  // NOLINT(performance-move-const-arg)
 
     if ( data )
     {
@@ -392,6 +401,14 @@ std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const void* data, st
     }
 
     return uniformBuffer;
+}
+
+std::shared_ptr<Sampler> Device::createSampler( const WGPUSamplerDescriptor& samplerDescriptor ) const
+{
+    WGPUSampler sampler = wgpuDeviceCreateSampler( device, &samplerDescriptor );
+
+    return std::make_shared<MakeSampler>( std::move( sampler ), // NOLINT(performance-move-const-arg)
+                                          samplerDescriptor );
 }
 
 void Device::poll( bool sleep )
@@ -408,7 +425,7 @@ void Device::poll( bool sleep )
 #endif
 }
 
-void WebGPUlib::Device::onDeviceLostCallback( WGPUDeviceLostReason reason, char const* message, void* userdata )
+void Device::onDeviceLostCallback( WGPUDeviceLostReason reason, char const* message, void* userdata )
 {
     std::cerr << "Device lost: " << std::hex << reason << std::dec;
     if ( message )
@@ -416,7 +433,7 @@ void WebGPUlib::Device::onDeviceLostCallback( WGPUDeviceLostReason reason, char 
     std::cerr << std::endl;
 }
 
-void WebGPUlib::Device::onUncapturedErrorCallback( WGPUErrorType type, const char* message, void* userdata )
+void Device::onUncapturedErrorCallback( WGPUErrorType type, const char* message, void* userdata )
 {
     std::cerr << "Uncaptured device error: " << std::hex << type << std::dec;
     if ( message )

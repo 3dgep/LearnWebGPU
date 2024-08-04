@@ -13,6 +13,7 @@ namespace WebGPUlib
 class Queue;
 class IndexBuffer;
 class Mesh;
+class Sampler;
 class Surface;
 class UniformBuffer;
 class VertexBuffer;
@@ -51,6 +52,8 @@ public:
     template<typename T>
     std::shared_ptr<UniformBuffer> createUniformBuffer( const T& data ) const;
     std::shared_ptr<UniformBuffer> createUniformBuffer( const void* data, std::size_t size ) const;
+
+    std::shared_ptr<Sampler> createSampler( const WGPUSamplerDescriptor& samplerDescriptor ) const;
 
     void poll( bool sleep = false );
 
