@@ -6,6 +6,7 @@ set( TARGET_NAME WebGPUlib )
 
 set( INC
 	inc/bitmask_operators.hpp
+	inc/WebGPUlib/BindGroup.hpp
 	inc/WebGPUlib/Buffer.hpp
 	inc/WebGPUlib/CommandBuffer.hpp
 	inc/WebGPUlib/Device.hpp
@@ -28,6 +29,7 @@ set( INC
 )
 
 set( SRC
+	src/BindGroup.cpp
 	src/Buffer.cpp
 	src/CommandBuffer.cpp
 	src/Device.cpp
@@ -58,7 +60,7 @@ source_group( "Shaders" FILES ${SHADERS} )
 
 target_compile_features( WebGPUlib
 PUBLIC
-	cxx_std_20
+	cxx_std_17
 )
 
 target_include_directories( ${TARGET_NAME}

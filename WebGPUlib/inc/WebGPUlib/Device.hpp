@@ -11,6 +11,7 @@ struct SDL_Window;
 namespace WebGPUlib
 {
 
+class BindGroup;
 class Queue;
 class IndexBuffer;
 class Mesh;
@@ -62,6 +63,8 @@ public:
     std::shared_ptr<UniformBuffer> createUniformBuffer( const void* data, std::size_t size ) const;
 
     std::shared_ptr<Sampler> createSampler( const WGPUSamplerDescriptor& samplerDescriptor ) const;
+
+    std::shared_ptr<BindGroup> createBindGroup( const WGPUBindGroupDescriptor& bindGroupDescriptor ) const;
 
     void poll( bool sleep = false );
 

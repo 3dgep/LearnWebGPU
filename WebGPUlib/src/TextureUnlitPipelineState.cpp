@@ -26,37 +26,24 @@ TextureUnlitPipelineState::TextureUnlitPipelineState()
     shaderModuleDescriptor.nextInChain = &shaderCodeDesc.chain;
     WGPUShaderModule shaderModule      = wgpuDeviceCreateShaderModule( device, &shaderModuleDescriptor );
 
-    // clang-format off
     // Setup the binding layout.
     // @group( 0 ) @binding( 0 ) var<uniform> mvp : mat4x4f;
     // @group( 0 ) @binding( 1 ) var          albedoTexture : texture_2d<f32>;
     // @group( 0 ) @binding( 2 ) var          linearRepeatSampler : sampler;
-    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[] = {
-        {
-            .binding    = 0,
-            .visibility = WGPUShaderStage_Vertex,
-            .buffer     = {
-                .type = WGPUBufferBindingType_Uniform,
-                .minBindingSize = sizeof( glm::mat4 )
-            },
-        },
-        {
-            .binding = 1,
-            .visibility = WGPUShaderStage_Fragment,
-            .texture = {
-                .sampleType = WGPUTextureSampleType_Float,
-                .viewDimension = WGPUTextureViewDimension_2D,
-            },
-        },
-        {
-            .binding = 2,
-            .visibility = WGPUShaderStage_Fragment,
-            .sampler = {
-                .type = WGPUSamplerBindingType_Filtering
-            },
-        }
-    };
-    // clang-format on
+    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[3] {};
+    bindGroupLayoutEntries[0].binding               = 0;
+    bindGroupLayoutEntries[0].visibility            = WGPUShaderStage_Vertex;
+    bindGroupLayoutEntries[0].buffer.type           = WGPUBufferBindingType_Uniform;
+    bindGroupLayoutEntries[0].buffer.minBindingSize = sizeof( glm::mat4 );
+
+    bindGroupLayoutEntries[1].binding               = 1;
+    bindGroupLayoutEntries[1].visibility            = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[1].texture.sampleType    = WGPUTextureSampleType_Float;
+    bindGroupLayoutEntries[1].texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    bindGroupLayoutEntries[2].binding      = 2;
+    bindGroupLayoutEntries[2].visibility   = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[2].sampler.type = WGPUSamplerBindingType_Filtering;
 
     // Setup the binding group.
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor {};
@@ -70,32 +57,25 @@ TextureUnlitPipelineState::TextureUnlitPipelineState()
     pipelineLayoutDescriptor.bindGroupLayouts     = &bindGroupLayout;
     WGPUPipelineLayout pipelineLayout             = wgpuDeviceCreatePipelineLayout( device, &pipelineLayoutDescriptor );
 
-    // clang-format off
     // Setup the vertex layout.
     // glm::vec3 position;
     // glm::vec3 normal;
     // glm::vec3 texCoord;
-    WGPUVertexAttribute vertexAttributes[] = {
-        {
-            // glm::vec3 position;
-            .format = WGPUVertexFormat_Float32x3,
-            .offset = offsetof( VertexPositionNormalTexture, position ),
-            .shaderLocation = 0,
-        },
-        {
-            // glm::vec3 normal;
-            .format = WGPUVertexFormat_Float32x3,
-            .offset = 12,
-            .shaderLocation = 1,
-        },
-        {
-            // glm::vec3 texCoord;
-            .format = WGPUVertexFormat_Float32x3,
-            .offset = 24,
-            .shaderLocation = 2,
-        },
-    };
-    // clang-format on
+    WGPUVertexAttribute vertexAttributes[3] {};
+    // glm::vec3 position;
+    vertexAttributes[0].format         = WGPUVertexFormat_Float32x3;
+    vertexAttributes[0].offset         = offsetof( VertexPositionNormalTexture, position );
+    vertexAttributes[0].shaderLocation = 0;
+
+    // glm::vec3 normal;
+    vertexAttributes[1].format         = WGPUVertexFormat_Float32x3;
+    vertexAttributes[1].offset         = offsetof( VertexPositionNormalTexture, normal );
+    vertexAttributes[1].shaderLocation = 1;
+
+    // glm::vec3 texCoord;
+    vertexAttributes[2].format         = WGPUVertexFormat_Float32x3;
+    vertexAttributes[2].offset         = offsetof( VertexPositionNormalTexture, texCoord );
+    vertexAttributes[2].shaderLocation = 2;
 
     WGPUVertexBufferLayout vertexBufferLayout {};
     vertexBufferLayout.arrayStride    = sizeof( VertexPositionNormalTexture );

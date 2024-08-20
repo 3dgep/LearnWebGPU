@@ -34,8 +34,8 @@ static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspec
     case WGPUTextureFormat_R8Sint:
     case WGPUTextureFormat_Stencil8:
         return 1u;
-    case WGPUTextureFormat_R16Unorm:
-    case WGPUTextureFormat_R16Snorm:
+    // case WGPUTextureFormat_R16Unorm:
+    // case WGPUTextureFormat_R16Snorm:
     case WGPUTextureFormat_R16Uint:
     case WGPUTextureFormat_R16Sint:
     case WGPUTextureFormat_R16Float:
@@ -48,8 +48,8 @@ static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspec
     case WGPUTextureFormat_R32Float:
     case WGPUTextureFormat_R32Uint:
     case WGPUTextureFormat_R32Sint:
-    case WGPUTextureFormat_RG16Unorm:
-    case WGPUTextureFormat_RG16Snorm:
+    // case WGPUTextureFormat_RG16Unorm:
+    // case WGPUTextureFormat_RG16Snorm:
     case WGPUTextureFormat_RG16Uint:
     case WGPUTextureFormat_RG16Sint:
     case WGPUTextureFormat_RG16Float:
@@ -69,8 +69,8 @@ static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspec
     case WGPUTextureFormat_RG32Float:
     case WGPUTextureFormat_RG32Uint:
     case WGPUTextureFormat_RG32Sint:
-    case WGPUTextureFormat_RGBA16Unorm:
-    case WGPUTextureFormat_RGBA16Snorm:
+    // case WGPUTextureFormat_RGBA16Unorm:
+    // case WGPUTextureFormat_RGBA16Snorm:
     case WGPUTextureFormat_RGBA16Uint:
     case WGPUTextureFormat_RGBA16Sint:
     case WGPUTextureFormat_RGBA16Float:
@@ -136,6 +136,8 @@ static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspec
         {
         case WGPUTextureAspect_StencilOnly:
             return 1u;
+        default:
+            break;
         }
         break;
     case WGPUTextureFormat_Depth32FloatStencil8:
@@ -145,17 +147,21 @@ static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspec
             return 1u;
         case WGPUTextureAspect_DepthOnly:
             return 4u;
+        default:
+            break;
         }
         break;
     case WGPUTextureFormat_Depth24Plus:
-    case WGPUTextureFormat_R8BG8Biplanar420Unorm:
-    case WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm:
-    case WGPUTextureFormat_R8BG8A8Triplanar420Unorm:
-    case WGPUTextureFormat_R8BG8Biplanar422Unorm:
-    case WGPUTextureFormat_R8BG8Biplanar444Unorm:
-    case WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm:
-    case WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm:
-    case WGPUTextureFormat_External:
+        // case WGPUTextureFormat_R8BG8Biplanar420Unorm:
+        // case WGPUTextureFormat_R10X6BG10X6Biplanar420Unorm:
+        // case WGPUTextureFormat_R8BG8A8Triplanar420Unorm:
+        // case WGPUTextureFormat_R8BG8Biplanar422Unorm:
+        // case WGPUTextureFormat_R8BG8Biplanar444Unorm:
+        // case WGPUTextureFormat_R10X6BG10X6Biplanar422Unorm:
+        // case WGPUTextureFormat_R10X6BG10X6Biplanar444Unorm:
+        // case WGPUTextureFormat_External:
+        break;
+    default:
         break;
     }
 
@@ -265,9 +271,9 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
         std::move( commandEncoder ), std::move( renderPassEncoder ) );  // NOLINT(performance-move-const-arg)
 }
 
-void Queue::submit( std::shared_ptr<CommandBuffer> commandBuffer )
+void Queue::submit( CommandBuffer& commandBuffer )
 {
-    WGPUCommandBuffer cb = commandBuffer->finish();
+    WGPUCommandBuffer cb = commandBuffer.finish();
 
     wgpuQueueSubmit( queue, 1, &cb );
 

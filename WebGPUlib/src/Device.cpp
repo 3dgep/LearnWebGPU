@@ -1,3 +1,4 @@
+#include <WebGPUlib/BindGroup.hpp>
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/IndexBuffer.hpp>
 #include <WebGPUlib/Mesh.hpp>
@@ -74,6 +75,13 @@ struct MakeTexture : Texture
 {
     MakeTexture( WGPUTexture&& texture, const WGPUTextureDescriptor& textureDescriptor )
     : Texture( std::move( texture ), textureDescriptor )
+    {}
+};
+
+struct MakeBindGroup : BindGroup
+{
+    MakeBindGroup( WGPUBindGroup&& bindGroup )
+    : BindGroup( std::move( bindGroup ) )
     {}
 };
 
@@ -362,7 +370,8 @@ std::shared_ptr<Texture> Device::createTexture( const WGPUTextureDescriptor& tex
 {
     WGPUTexture texture = wgpuDeviceCreateTexture( device, &textureDescriptor );
 
-    return std::make_shared<Texture>( std::move( texture ), textureDescriptor );  // NOLINT(performance-move-const-arg)
+    return std::make_shared<MakeTexture>( std::move( texture ),
+                                          textureDescriptor );  // NOLINT(performance-move-const-arg)
 }
 
 std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& filePath )
@@ -435,7 +444,7 @@ std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData
                                                             vertexCount, vertexStride );
 
     if ( vertexData )
-        queue->writeBuffer( vertexBuffer, vertexData, size );
+        queue->writeBuffer( *vertexBuffer, vertexData, size );
 
     return vertexBuffer;
 }
@@ -453,7 +462,7 @@ std::shared_ptr<IndexBuffer> Device::createIndexBuffer( const void* indexData, s
                                                           indexCount, indexStride );
 
     if ( indexData )
-        queue->writeBuffer( indexBuffer, indexData, size );
+        queue->writeBuffer( *indexBuffer, indexData, size );
 
     return indexBuffer;
 }
@@ -470,7 +479,7 @@ std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const void* data, st
         std::make_shared<MakeUniformBuffer>( std::move( buffer ), size );  // NOLINT(performance-move-const-arg)
 
     if ( data )
-        queue->writeBuffer( uniformBuffer, data, size );
+        queue->writeBuffer( *uniformBuffer, data, size );
 
     return uniformBuffer;
 }
@@ -481,6 +490,14 @@ std::shared_ptr<Sampler> Device::createSampler( const WGPUSamplerDescriptor& sam
 
     return std::make_shared<MakeSampler>( std::move( sampler ),  // NOLINT(performance-move-const-arg)
                                           samplerDescriptor );
+}
+
+std::shared_ptr<BindGroup>
+    WebGPUlib::Device::createBindGroup( const WGPUBindGroupDescriptor& bindGroupDescriptor ) const
+{
+    WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup( device, &bindGroupDescriptor );
+
+    return std::make_shared<MakeBindGroup>( std::move( bindGroup ) );  // NOLINT(performance-move-const-arg)
 }
 
 void Device::poll( bool sleep )

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
+#include <vector>
 
 namespace WebGPUlib
 {
@@ -25,6 +25,7 @@ public:
 
     void                          setVertexBuffer( uint32_t slot, std::shared_ptr<VertexBuffer> vertexBuffer );
     std::shared_ptr<VertexBuffer> getVertexBuffer( uint32_t slot ) const;
+    const std::vector<std::shared_ptr<VertexBuffer>>& getVertexBuffers() const;
 
     void                         setIndexBuffer( std::shared_ptr<IndexBuffer> indexBuffer );
     std::shared_ptr<IndexBuffer> getIndexBuffer() const;
@@ -33,8 +34,8 @@ public:
     std::shared_ptr<Material> getMaterial() const;
 
 private:
-    std::unordered_map<uint32_t, std::shared_ptr<VertexBuffer>> vertexBuffers;
-    std::shared_ptr<IndexBuffer>                                indexBuffer;
-    std::shared_ptr<Material>                                   material;
+    std::vector<std::shared_ptr<VertexBuffer>> vertexBuffers;
+    std::shared_ptr<IndexBuffer>               indexBuffer;
+    std::shared_ptr<Material>                  material;
 };
 }  // namespace WebGPUlib

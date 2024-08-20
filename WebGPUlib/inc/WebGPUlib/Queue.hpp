@@ -11,6 +11,7 @@ namespace WebGPUlib
 {
 class Buffer;
 class RenderTarget;
+class Texture;
 
 enum class ClearFlags
 {
@@ -37,7 +38,7 @@ public:
                                                                         float            depth      = 1.0f,
                                                                         uint32_t         stencil    = 0 ) const;
 
-    void submit( std::shared_ptr<CommandBuffer> commandBuffer );
+    void submit( CommandBuffer& commandBuffer );
 
     WGPUQueue getWGPUQueue() const
     {

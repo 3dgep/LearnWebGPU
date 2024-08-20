@@ -13,13 +13,21 @@ Mesh::Mesh( std::shared_ptr<VertexBuffer> vertexBuffer, std::shared_ptr<IndexBuf
 
 void Mesh::setVertexBuffer( uint32_t slot, std::shared_ptr<VertexBuffer> vertexBuffer )
 {
+    // Ensure the capacity of the vertex buffers vector.
+    if ( vertexBuffers.size() <= slot )
+        vertexBuffers.resize( slot + 1, nullptr );
+
     vertexBuffers[slot] = std::move( vertexBuffer );
 }
 
 std::shared_ptr<VertexBuffer> Mesh::getVertexBuffer( uint32_t slot ) const
 {
-    auto it = vertexBuffers.find( slot );
-    return it != vertexBuffers.end() ? it->second : nullptr;
+    vertexBuffers.size() > slot ? vertexBuffers[slot] : nullptr;
+}
+
+const std::vector<std::shared_ptr<VertexBuffer>>& WebGPUlib::Mesh::getVertexBuffers() const
+{
+    return vertexBuffers;
 }
 
 void Mesh::setIndexBuffer( std::shared_ptr<IndexBuffer> _indexBuffer )

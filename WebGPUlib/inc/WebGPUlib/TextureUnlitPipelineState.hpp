@@ -10,6 +10,9 @@ class Surface;
 class TextureUnlitPipelineState : public GraphicsPipelineState
 {
 public:
+    TextureUnlitPipelineState();
+    ~TextureUnlitPipelineState() override;
+
     TextureUnlitPipelineState( const TextureUnlitPipelineState& )     = delete;
     TextureUnlitPipelineState( TextureUnlitPipelineState&& ) noexcept = delete;
 
@@ -20,10 +23,6 @@ public:
     {
         return bindGroupLayout;
     }
-
-protected:
-    TextureUnlitPipelineState();
-    ~TextureUnlitPipelineState() override;
 
 private:
     WGPUBindGroupLayout bindGroupLayout = nullptr;
