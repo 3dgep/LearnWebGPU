@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <memory>
+#include <optional>
 
 namespace WebGPUlib
 {
@@ -22,7 +23,7 @@ public:
     CommandBuffer& operator=( const CommandBuffer& );
     CommandBuffer& operator=( CommandBuffer&& ) noexcept;
 
-    void bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset = 0 );
+    void bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset = 0, std::optional<uint64_t> size = {} );
     void bindSampler( uint32_t groupIndex, uint32_t binding, const Sampler& sampler );
     void bindTexture( uint32_t groupIndex, uint32_t binding, const TextureView& texture );
 

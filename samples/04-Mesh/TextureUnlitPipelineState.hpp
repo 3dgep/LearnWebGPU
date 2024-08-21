@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GraphicsPipelineState.hpp"
+#include <WebGPUlib/GraphicsPipelineState.hpp>
 
 #include <cassert>
 

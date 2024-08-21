@@ -1,12 +1,14 @@
+#include "TextureUnlitPipelineState.hpp"
+
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/RenderTarget.hpp>
 #include <WebGPUlib/Sampler.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/Texture.hpp>
-#include <WebGPUlib/TextureUnlitPipelineState.hpp>
 #include <WebGPUlib/TextureView.hpp>
 #include <WebGPUlib/UniformBuffer.hpp>
+#include <WebGPUlib/GraphicsCommandBuffer.hpp>
 
 #include <Timer.hpp>
 
@@ -43,8 +45,8 @@ std::unique_ptr<TextureUnlitPipelineState> textureUnlitPipelineState;
 
 void onResize( uint32_t width, uint32_t height )
 {
-    auto surface = Device::get().getSurface();
-    surface->resize( width, height );
+    // Resize the window surface.
+    Device::get().getSurface()->resize( width, height );
 
     // Create the depth texture.
     WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
@@ -99,7 +101,7 @@ void init()
     onResize( WINDOW_WIDTH, WINDOW_HEIGHT );
 
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
-    cubeMesh      = Device::get().createCube();
+    cubeMesh      = Device::get().createCube(2.0f);
 
     // Setup the texture sampler.
     WGPUSamplerDescriptor linearRepeatSamplerDesc {};
@@ -200,7 +202,8 @@ void update( void* userdata = nullptr )
     // Update the model-view-projection matrix.
     int width, height;
     SDL_GetWindowSize( window, &width, &height );
-    float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
+    float angle = 0.0f;
+     // static_cast<float>( timer.totalSeconds() * 90.0 );
     glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
     glm::mat4 modelMatrix      = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
     glm::mat4 viewMatrix       = glm::lookAt( glm::vec3 { 0, 0, 10 }, glm::vec3 { 0, 0, 0 }, glm::vec3 { 0, 1, 0 } );

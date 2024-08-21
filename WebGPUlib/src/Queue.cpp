@@ -1,3 +1,5 @@
+#include "WebGPUlib/ComputeCommandBuffer.hpp"
+
 #include <WebGPUlib/Buffer.hpp>
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/GraphicsCommandBuffer.hpp>
@@ -19,9 +21,16 @@ struct MakeGraphicsCommandBuffer : GraphicsCommandBuffer
     {}
 };
 
-void Queue::writeBuffer( const Buffer& buffer, const void* data, std::size_t size ) const
+struct MakeComputeCommandBuffer : ComputeCommandBuffer
 {
-    wgpuQueueWriteBuffer( queue, buffer.getWGPUBuffer(), 0, data, size );
+    MakeComputeCommandBuffer( WGPUCommandEncoder&& encoder, WGPUComputePassEncoder&& passEncoder )
+    : ComputeCommandBuffer { std::move( encoder ), std::move( passEncoder ) }  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+void Queue::writeBuffer( const Buffer& buffer, const void* data, std::size_t size, uint64_t offset ) const
+{
+    wgpuQueueWriteBuffer( queue, buffer.getWGPUBuffer(), offset, data, size );
 }
 
 static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspect )
@@ -249,7 +258,7 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
     {
         WGPULoadOp  stencilLoadOp  = WGPULoadOp_Undefined;
         WGPUStoreOp stencilStoreOp = WGPUStoreOp_Undefined;
-        if (depthStencilView->getWGPUTextureViewDescriptor().aspect != WGPUTextureAspect_DepthOnly)
+        if ( depthStencilView->getWGPUTextureViewDescriptor().aspect != WGPUTextureAspect_DepthOnly )
         {
             stencilLoadOp  = ( clearFlags & ClearFlags::Stencil ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
             stencilStoreOp = WGPUStoreOp_Store;
@@ -258,10 +267,10 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
         depthStencilAttachment.view = depthStencilView->getWGPUTextureView();
         depthStencilAttachment.depthLoadOp =
             ( clearFlags & ClearFlags::Depth ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
-        depthStencilAttachment.depthStoreOp    = WGPUStoreOp_Store;
-        depthStencilAttachment.depthClearValue = depth;
-        depthStencilAttachment.depthReadOnly   = false;
-        depthStencilAttachment.stencilLoadOp = stencilLoadOp;
+        depthStencilAttachment.depthStoreOp      = WGPUStoreOp_Store;
+        depthStencilAttachment.depthClearValue   = depth;
+        depthStencilAttachment.depthReadOnly     = false;
+        depthStencilAttachment.stencilLoadOp     = stencilLoadOp;
         depthStencilAttachment.stencilStoreOp    = stencilStoreOp;
         depthStencilAttachment.stencilClearValue = stencil;
         depthStencilAttachment.stencilReadOnly   = false;
@@ -276,6 +285,23 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
 
     return std::make_shared<MakeGraphicsCommandBuffer>(
         std::move( commandEncoder ), std::move( renderPassEncoder ) );  // NOLINT(performance-move-const-arg)
+}
+
+std::shared_ptr<ComputeCommandBuffer> Queue::createComputeCommandBuffer()
+{
+    // Create a command encoder.
+    WGPUCommandEncoderDescriptor commandEncoderDesc {};
+    commandEncoderDesc.label = "Compute Command Encoder";
+    WGPUCommandEncoder commandEncoder =
+        wgpuDeviceCreateCommandEncoder( Device::get().getWGPUDevice(), &commandEncoderDesc );
+
+    // Create a compute pass
+    WGPUComputePassDescriptor computePassDesc {};
+    computePassDesc.label              = "Compute Pass";
+    computePassDesc.timestampWrites    = nullptr;
+    WGPUComputePassEncoder passEncoder = wgpuCommandEncoderBeginComputePass( commandEncoder, &computePassDesc );
+
+    return std::make_shared<MakeComputeCommandBuffer>( std::move( commandEncoder ), std::move( passEncoder ) );  // NOLINT(performance-move-const-arg)
 }
 
 void Queue::submit( CommandBuffer& commandBuffer )

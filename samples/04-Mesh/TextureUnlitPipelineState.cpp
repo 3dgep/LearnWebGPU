@@ -1,8 +1,8 @@
-#include "WebGPUlib/GraphicsCommandBuffer.hpp"
+#include "TextureUnlitPipelineState.hpp"
 
 #include <WebGPUlib/Device.hpp>
+#include <WebGPUlib/GraphicsCommandBuffer.hpp>
 #include <WebGPUlib/Surface.hpp>
-#include <WebGPUlib/TextureUnlitPipelineState.hpp>
 #include <WebGPUlib/Vertex.hpp>
 
 #include <glm/mat4x4.hpp>
@@ -12,7 +12,7 @@ using namespace WebGPUlib;
 TextureUnlitPipelineState::TextureUnlitPipelineState()
 {
     const char* shaderCode = {
-#include "../shaders/TextureUnlitShader.wgsl"
+#include "TextureUnlitShader.wgsl"
     };
 
     WGPUDevice        device        = Device::get().getWGPUDevice();

@@ -13,33 +13,42 @@ BindGroup::~BindGroup()
         wgpuBindGroupRelease( bindGroup );
 }
 
-void BindGroup::bind( uint32_t binding, const Buffer& buffer, uint64_t offset )
+void BindGroup::bind( uint32_t binding, const Buffer& buffer, uint64_t offset, std::optional<uint64_t> size )
 {
+    if ( bindings.size() <= binding )
+        bindings.resize( binding + 1, {} );
+
     WGPUBindGroupEntry entry {};
     entry.binding = binding;
     entry.buffer  = buffer.getWGPUBuffer();
     entry.offset  = offset;
-    entry.size    = buffer.getSize();
+    entry.size    = size ? *size : buffer.getSize();
 
-    bindings.push_back( entry );
+    bindings[binding] = entry;
 }
 
 void BindGroup::bind( uint32_t binding, const Sampler& sampler )
 {
+    if ( bindings.size() <= binding )
+        bindings.resize( binding + 1, {} );
+
     WGPUBindGroupEntry entry {};
     entry.binding = binding;
     entry.sampler = sampler.getWGPUSampler();
 
-    bindings.push_back( entry );
+    bindings[binding] = entry;
 }
 
 void BindGroup::bind( uint32_t binding, const TextureView& textureView )
 {
+    if ( bindings.size() <= binding )
+        bindings.resize( binding + 1, {} );
+
     WGPUBindGroupEntry entry {};
     entry.binding     = binding;
     entry.textureView = textureView.getWGPUTextureView();
 
-    bindings.push_back( entry );
+    bindings[binding] = entry;
 }
 
 WGPUBindGroup BindGroup::getWGPUBindGroup( WGPUBindGroupLayout layout ) const

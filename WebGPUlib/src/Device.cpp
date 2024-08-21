@@ -1,5 +1,7 @@
 #include <WebGPUlib/BindGroup.hpp>
+#include <WebGPUlib/ComputeCommandBuffer.hpp>
 #include <WebGPUlib/Device.hpp>
+#include <WebGPUlib/GenerateMipsPipelineState.hpp>
 #include <WebGPUlib/IndexBuffer.hpp>
 #include <WebGPUlib/Mesh.hpp>
 #include <WebGPUlib/Queue.hpp>
@@ -26,6 +28,33 @@
 #include <iostream>
 
 using namespace WebGPUlib;
+
+/**
+ * bitScanForward
+ * @author Kim Walisch (2012)
+ * @param bb bitboard to scan
+ * @precondition bb != 0
+ * @return index (0..63) of least significant one bit
+ * @source: https://www.chessprogramming.org/BitScan
+ * @date: July 18th, 2024
+ */
+int bitScanForward( uint64_t bb )
+{
+    static const int index64[64] = { 0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61,
+                                     54, 58, 35, 52, 50, 42, 21, 44, 38, 32, 29, 23, 17, 11, 4,  62,
+                                     46, 55, 26, 59, 40, 36, 15, 53, 34, 51, 20, 43, 31, 22, 10, 45,
+                                     25, 39, 14, 33, 19, 30, 9,  24, 13, 18, 8,  12, 7,  6,  5,  63 };
+
+    const uint64_t debruijn64 = 0x03f79d71b4cb0a89;
+    assert( bb != 0 );
+    return index64[( ( bb ^ ( bb - 1 ) ) * debruijn64 ) >> 58];
+}
+
+template<typename T>
+constexpr T DivideByMultiple( T value, size_t alignment )
+{
+    return static_cast<T>(( value + alignment - 1 ) / alignment);
+}
 
 std::unique_ptr<Device> pDevice { nullptr };
 
@@ -396,20 +425,10 @@ std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& fileP
 
     WGPUTexture texture = wgpuDeviceCreateTexture( device, &textureDesc );
 
+    auto tex =
+        std::make_shared<MakeTexture>( std::move( texture ), textureDesc );  // NOLINT(performance-move-const-arg)
+
     // Copy mip level 0.
-    WGPUImageCopyTexture dst {};
-    dst.texture  = texture;
-    dst.mipLevel = 0;
-    dst.origin   = { 0, 0, 0 };
-    dst.aspect   = WGPUTextureAspect_All;
-
-    WGPUTextureDataLayout src {};
-    src.offset       = 0;
-    src.bytesPerRow  = 4 * width;
-    src.rowsPerImage = height;
-
-    auto tex = std::make_shared<MakeTexture>( std::move( texture ), textureDesc );
-
     queue->writeTexture( *tex, 0, data, ( static_cast<std::size_t>( width ) * height * 4u ) );
 
     stbi_image_free( data );
@@ -419,9 +438,148 @@ std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& fileP
     return tex;
 }
 
-void Device::generateMips( const Texture& texture )
+void Device::generateMips( Texture& texture )
 {
-    // TODO:
+    if ( !generateMipsPipelineState )
+        generateMipsPipelineState = std::make_unique<GenerateMipsPipelineState>();
+
+    auto desc = texture.getWGPUTextureDescriptor();
+
+    auto commandBuffer = queue->createComputeCommandBuffer();
+
+    commandBuffer->setComputePipeline( *generateMipsPipelineState );
+
+    // Setup a temporary uniform buffer for uploading the mip info.
+    auto uniformBuffer = createUniformBuffer( nullptr, 4096u );  // 4k should be more than enough?
+
+    // Create a dummy texture to pad any unused mips.
+    // Create a placeholder texture to use during mipmap generation.
+    WGPUTextureDescriptor dummyTextureDesc {};
+    dummyTextureDesc.label         = "Mip map placeholder texture";
+    dummyTextureDesc.usage         = WGPUTextureUsage_StorageBinding;
+    dummyTextureDesc.dimension     = WGPUTextureDimension_2D;
+    dummyTextureDesc.size          = { 16, 16, 1 };
+    dummyTextureDesc.format        = WGPUTextureFormat_RGBA8Unorm;
+    dummyTextureDesc.mipLevelCount = 4;
+    dummyTextureDesc.sampleCount   = 1;
+    auto dummyTexture              = createTexture( dummyTextureDesc );
+
+    // Create a sampler
+    WGPUSamplerDescriptor linearClampSamplerDesc {};
+    linearClampSamplerDesc.label         = "Linear Clamp Sampler";
+    linearClampSamplerDesc.addressModeU  = WGPUAddressMode_ClampToEdge;
+    linearClampSamplerDesc.addressModeV  = WGPUAddressMode_ClampToEdge;
+    linearClampSamplerDesc.addressModeW  = WGPUAddressMode_ClampToEdge;
+    linearClampSamplerDesc.magFilter     = WGPUFilterMode_Linear;
+    linearClampSamplerDesc.minFilter     = WGPUFilterMode_Linear;
+    linearClampSamplerDesc.mipmapFilter  = WGPUMipmapFilterMode_Linear;
+    linearClampSamplerDesc.lodMinClamp   = 0.0f;
+    linearClampSamplerDesc.lodMaxClamp   = FLT_MAX;
+    linearClampSamplerDesc.compare       = WGPUCompareFunction_Undefined;
+    linearClampSamplerDesc.maxAnisotropy = 1;
+    auto sampler                         = createSampler( linearClampSamplerDesc );
+
+    // Bind the sampler
+    commandBuffer->bindSampler( 0, 6, *sampler );
+
+    for ( uint32_t srcMip = 0, pass = 0; srcMip < desc.mipLevelCount - 1; ++pass )
+    {
+        uint32_t srcWidth  = desc.size.width >> srcMip;
+        uint32_t srcHeight = desc.size.height >> srcMip;
+        uint32_t dstWidth  = srcWidth >> 1u;
+        uint32_t dstHeight = srcHeight >> 1u;
+
+        Mip mip {};
+        // 0b00(0): Both width and height are even.
+        // 0b01(1): Width is odd, height is even.
+        // 0b10(2): Width is even, height is odd.
+        // 0b11(3): Both width and height are odd.
+        mip.dimensions = ( srcHeight & 1 ) << 1 | ( srcWidth & 1 );
+
+        // The number of times we can half the size of the texture and get
+        // exactly a 50% reduction in size.
+        // A 1 bit in the width or height indicates an odd dimension.
+        // The case where either the width or the height is exactly 1 is handled
+        // as a special case (as the dimension does not require reduction).
+        int mipCount =
+            bitScanForward( ( dstWidth == 1 ? dstHeight : dstWidth ) | ( dstHeight == 1 ? dstWidth : dstHeight ) );
+
+        // Maximum number of mips to generate is 4.
+        mipCount = std::min( mipCount + 1, 4 );
+
+        // Clamp to total number of mips left over.
+        mipCount = ( srcMip + mipCount ) >= desc.mipLevelCount ? static_cast<int>( desc.mipLevelCount - srcMip ) - 1 :
+                                                                 mipCount;
+
+        // Dimensions should not reduce to 0.
+        // This can happen if the width and height are not the same.
+        dstWidth  = std::max( 1u, dstWidth );
+        dstHeight = std::max( 1u, dstHeight );
+
+        mip.srcMipLevel = srcMip;
+        mip.numMips     = mipCount;
+        mip.texelSize   = { 1.0f / static_cast<float>( dstWidth ), 1.0f / static_cast<float>( dstHeight ) };
+
+        // Write the mip info to the buffer.
+        uint32_t bufferOffset = 256 * pass;
+        queue->writeBuffer( *uniformBuffer, &mip, sizeof(Mip), bufferOffset );
+
+        commandBuffer->bindBuffer( 0, 0, *uniformBuffer, bufferOffset, sizeof( Mip ) );
+
+        // Setup a texture view for the source texture.
+        WGPUTextureViewDescriptor srcTextureViewDesc {};
+        srcTextureViewDesc.label           = "Generate Mip Source Texture";
+        srcTextureViewDesc.format          = desc.format;
+        srcTextureViewDesc.dimension       = WGPUTextureViewDimension_2D;
+        srcTextureViewDesc.baseMipLevel    = srcMip;
+        srcTextureViewDesc.mipLevelCount   = 1;
+        srcTextureViewDesc.baseArrayLayer  = 0;
+        srcTextureViewDesc.arrayLayerCount = 1;
+        srcTextureViewDesc.aspect          = WGPUTextureAspect_All;
+        auto srcTextureView                = texture.getView( &srcTextureViewDesc );
+
+        commandBuffer->bindTexture( 0, 1, *srcTextureView );
+
+        uint32_t dstMip = 0;
+        for ( ; dstMip < mipCount; ++dstMip )
+        {
+            WGPUTextureViewDescriptor dstMipViewDesc {};
+            dstMipViewDesc.label           = "Generate Mip Destination Texture";
+            dstMipViewDesc.format          = desc.format;
+            dstMipViewDesc.dimension       = WGPUTextureViewDimension_2D;
+            dstMipViewDesc.baseMipLevel    = srcMip + dstMip + 1;
+            dstMipViewDesc.mipLevelCount   = 1;
+            dstMipViewDesc.baseArrayLayer  = 0;
+            dstMipViewDesc.arrayLayerCount = 1;
+            dstMipViewDesc.aspect          = WGPUTextureAspect_All;
+            auto dstMipView                = texture.getView( &dstMipViewDesc );
+
+            commandBuffer->bindTexture( 0, 2 + dstMip, *dstMipView );
+        }
+
+        // Pad any unused mips with a dummy texture view.
+        for ( ; dstMip < 4; ++dstMip )
+        {
+            WGPUTextureViewDescriptor dstMipViewDesc {};
+            dstMipViewDesc.label           = "Generate Mip Dummy Texture";
+            dstMipViewDesc.format          = desc.format;
+            dstMipViewDesc.dimension       = WGPUTextureViewDimension_2D;
+            dstMipViewDesc.baseMipLevel    = dstMip;
+            dstMipViewDesc.mipLevelCount   = 1;
+            dstMipViewDesc.baseArrayLayer  = 0;
+            dstMipViewDesc.arrayLayerCount = 1;
+            dstMipViewDesc.aspect          = WGPUTextureAspect_All;
+            auto dstMipView     = dummyTexture->getView( &dstMipViewDesc );
+
+            commandBuffer->bindTexture( 0, 2 + dstMip, *dstMipView );
+        }
+
+        commandBuffer->dispatch( DivideByMultiple( dstWidth, 8 ), DivideByMultiple( dstHeight, 8 ) );
+
+        srcMip += mipCount;
+    }
+
+    queue->submit( *commandBuffer );
 }
 
 std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t vertexCount,

@@ -9,7 +9,10 @@ set( INC
 	inc/WebGPUlib/BindGroup.hpp
 	inc/WebGPUlib/Buffer.hpp
 	inc/WebGPUlib/CommandBuffer.hpp
+	inc/WebGPUlib/ComputeCommandBuffer.hpp
+	inc/WebGPUlib/ComputePipelineState.hpp
 	inc/WebGPUlib/Device.hpp
+	inc/WebGPUlib/GenerateMipsPipelineState.hpp
 	inc/WebGPUlib/GraphicsCommandBuffer.hpp
 	inc/WebGPUlib/GraphicsPipelineState.hpp
 	inc/WebGPUlib/Hash.hpp
@@ -21,7 +24,6 @@ set( INC
 	inc/WebGPUlib/Sampler.hpp
 	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/Texture.hpp
-	inc/WebGPUlib/TextureUnlitPipelineState.hpp
 	inc/WebGPUlib/TextureView.hpp
 	inc/WebGPUlib/UniformBuffer.hpp
 	inc/WebGPUlib/Vertex.hpp
@@ -32,7 +34,10 @@ set( SRC
 	src/BindGroup.cpp
 	src/Buffer.cpp
 	src/CommandBuffer.cpp
+	src/ComputeCommandBuffer.cpp
+	src/ComputePipelineState.cpp
 	src/Device.cpp
+	src/GenerateMipsPipelineState.cpp
 	src/GraphicsCommandBuffer.cpp
 	src/GraphicsPipelineState.cpp
 	src/IndexBuffer.cpp
@@ -43,7 +48,6 @@ set( SRC
 	src/Sampler.cpp
 	src/Surface.cpp
 	src/Texture.cpp
-	src/TextureUnlitPipelineState.cpp
 	src/TextureView.cpp
 	src/UniformBuffer.cpp
 	src/Vertex.cpp
@@ -51,7 +55,7 @@ set( SRC
 )
 
 set( SHADERS
-	shaders/TextureUnlitShader.wgsl
+	shaders/GenerateMips.wgsl
 )
 
 add_library( ${TARGET_NAME} STATIC ${INC} ${SRC} ${SHADERS} )

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "GraphicsCommandBuffer.hpp"
-
 #include "../bitmask_operators.hpp"
 #include <webgpu/webgpu.h>
 
@@ -12,6 +10,9 @@ namespace WebGPUlib
 class Buffer;
 class RenderTarget;
 class Texture;
+class CommandBuffer;
+class GraphicsCommandBuffer;
+class ComputeCommandBuffer;
 
 enum class ClearFlags
 {
@@ -28,7 +29,7 @@ class Queue
 public:
     template<typename T>
     void writeBuffer( Buffer& buffer, const T& data ) const;
-    void writeBuffer( const Buffer& buffer, const void* data, std::size_t size ) const;
+    void writeBuffer( const Buffer& buffer, const void* data, std::size_t size, uint64_t offset = 0 ) const;
 
     void writeTexture( Texture& texture, uint32_t mip, const void* data, std::size_t size ) const;
 
@@ -37,6 +38,8 @@ public:
                                                                         const WGPUColor& clearColor = { 0, 0, 0, 0 },
                                                                         float            depth      = 1.0f,
                                                                         uint32_t         stencil    = 0 ) const;
+
+    std::shared_ptr<ComputeCommandBuffer> createComputeCommandBuffer();
 
     void submit( CommandBuffer& commandBuffer );
 

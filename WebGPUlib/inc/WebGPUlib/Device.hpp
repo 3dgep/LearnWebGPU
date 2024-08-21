@@ -20,6 +20,7 @@ class Surface;
 class Texture;
 class UniformBuffer;
 class VertexBuffer;
+class GenerateMipsPipelineState;
 
 class Device
 {
@@ -46,7 +47,7 @@ public:
 
     std::shared_ptr<Texture> loadTexture( const std::filesystem::path& filePath );
 
-    void generateMips( const Texture& texture );
+    void generateMips( Texture& texture );
 
     template<typename T>
     std::shared_ptr<VertexBuffer> createVertexBuffer( const std::vector<T>& vertices ) const;
@@ -89,6 +90,8 @@ private:
     WGPUDevice               device   = nullptr;
     std::shared_ptr<Queue>   queue    = nullptr;
     std::shared_ptr<Surface> surface  = nullptr;
+
+    std::unique_ptr<GenerateMipsPipelineState> generateMipsPipelineState;
 };
 
 template<typename T>

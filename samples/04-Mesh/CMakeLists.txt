@@ -7,7 +7,9 @@ set(TARGET_NAME 04-Mesh)
 
 set( SRC
 	main.cpp
-	shader.wgsl
+	TextureUnlitPipelineState.hpp
+	TextureUnlitPipelineState.cpp
+	TextureUnlitShader.wgsl
 )
 
 add_executable( ${TARGET_NAME} ${SRC} )

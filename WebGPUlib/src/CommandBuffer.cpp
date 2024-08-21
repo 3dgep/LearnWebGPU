@@ -82,10 +82,10 @@ void CommandBuffer::commitBindGroups()
     }
 }
 
-void CommandBuffer::bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset )
+void CommandBuffer::bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset, std::optional<uint64_t> size )
 {
     auto bindGroup = getBindGroup( groupIndex );
-    bindGroup->bind( binding, buffer, offset );
+    bindGroup->bind( binding, buffer, offset, size );
 }
 
 void CommandBuffer::bindSampler( uint32_t groupIndex, uint32_t binding, const Sampler& sampler )
