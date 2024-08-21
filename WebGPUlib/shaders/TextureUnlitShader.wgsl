@@ -33,6 +33,6 @@ fn vs_main(in: VertexIn) -> VertexOut
 
 @fragment
 fn fs_main(in: FragmentIn) -> @location(0) vec4f {
-    return textureSampleLevel(albedoTexture, linearRepeatSampler, in.uv, 0);
+    return textureSample(albedoTexture, linearRepeatSampler, in.uv);
 }
 )"

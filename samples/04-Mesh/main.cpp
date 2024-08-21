@@ -41,6 +41,41 @@ std::shared_ptr<Texture>                   albedoTexture;
 std::shared_ptr<Sampler>                   linearRepeatSampler;
 std::unique_ptr<TextureUnlitPipelineState> textureUnlitPipelineState;
 
+void onResize( uint32_t width, uint32_t height )
+{
+    auto surface = Device::get().getSurface();
+    surface->resize( width, height );
+
+    // Create the depth texture.
+    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
+
+    WGPUTextureDescriptor depthTextureDescriptor = {};
+    depthTextureDescriptor.label                 = "Depth Texture";
+    depthTextureDescriptor.usage                 = WGPUTextureUsage_RenderAttachment;
+    depthTextureDescriptor.dimension             = WGPUTextureDimension_2D;
+    depthTextureDescriptor.size                  = { width, height, 1 };
+    depthTextureDescriptor.format                = depthTextureFormat;
+    depthTextureDescriptor.mipLevelCount         = 1;
+    depthTextureDescriptor.sampleCount           = 1;
+    depthTextureDescriptor.viewFormatCount       = 1;
+    depthTextureDescriptor.viewFormats           = &depthTextureFormat;
+
+    depthTexture = Device::get().createTexture( depthTextureDescriptor );
+
+    // Create the depth texture view.
+    WGPUTextureViewDescriptor depthTextureViewDescriptor {};
+    depthTextureViewDescriptor.label           = "Depth Texture View";
+    depthTextureViewDescriptor.format          = WGPUTextureFormat_Depth32Float;
+    depthTextureViewDescriptor.dimension       = WGPUTextureViewDimension_2D;
+    depthTextureViewDescriptor.baseMipLevel    = 0;
+    depthTextureViewDescriptor.mipLevelCount   = 1;
+    depthTextureViewDescriptor.baseArrayLayer  = 0;
+    depthTextureViewDescriptor.arrayLayerCount = 1;
+    depthTextureViewDescriptor.aspect          = WGPUTextureAspect_DepthOnly;
+
+    depthTextureView = depthTexture->getView( &depthTextureViewDescriptor );
+}
+
 void init()
 {
     SDL_Init( SDL_INIT_VIDEO );
@@ -57,37 +92,11 @@ void init()
     Device::create( window );
 
     // Create a uniform buffer large enough to hold a single 4x4 matrix.
-    mvpBuffer = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
+    mvpBuffer                 = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
     textureUnlitPipelineState = std::make_unique<TextureUnlitPipelineState>();
 
-    // Create the depth texture.
-    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
-
-    WGPUTextureDescriptor depthTextureDescriptor = {};
-    depthTextureDescriptor.label                 = "Depth Texture";
-    depthTextureDescriptor.usage                 = WGPUTextureUsage_RenderAttachment;
-    depthTextureDescriptor.dimension             = WGPUTextureDimension_2D;
-    depthTextureDescriptor.size                  = { WINDOW_WIDTH, WINDOW_HEIGHT, 1 };
-    depthTextureDescriptor.format                = depthTextureFormat;
-    depthTextureDescriptor.mipLevelCount         = 1;
-    depthTextureDescriptor.sampleCount           = 1;
-    depthTextureDescriptor.viewFormatCount       = 1;
-    depthTextureDescriptor.viewFormats           = &depthTextureFormat;
-
-    depthTexture = Device::get().createTexture( depthTextureDescriptor );
-
-    // Create the depth texture view.
-    WGPUTextureViewDescriptor depthTextureViewDescriptor {};
-    depthTextureViewDescriptor.label           = "Depth Texture View";
-    depthTextureViewDescriptor.format          = depthTextureFormat;
-    depthTextureViewDescriptor.dimension       = WGPUTextureViewDimension_2D;
-    depthTextureViewDescriptor.baseMipLevel    = 0;
-    depthTextureViewDescriptor.mipLevelCount   = 1;
-    depthTextureViewDescriptor.baseArrayLayer  = 0;
-    depthTextureViewDescriptor.arrayLayerCount = 1;
-    depthTextureViewDescriptor.aspect          = WGPUTextureAspect_DepthOnly;
-
-    depthTextureView = depthTexture->getView( &depthTextureViewDescriptor );
+    // Resize to configure the depth texture.
+    onResize( WINDOW_WIDTH, WINDOW_HEIGHT );
 
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
     cubeMesh      = Device::get().createCube();
@@ -154,6 +163,13 @@ void pollEvents()
             if ( event.key.keysym.sym == SDLK_ESCAPE )
             {
                 isRunning = false;
+            }
+            break;
+        case SDL_WINDOWEVENT:
+            if ( event.window.event == SDL_WINDOWEVENT_RESIZED )
+            {
+                std::cout << "Window resized: " << event.window.data1 << "x" << event.window.data2 << std::endl;
+                onResize( event.window.data1, event.window.data2 );
             }
             break;
         default:
