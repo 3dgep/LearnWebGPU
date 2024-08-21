@@ -165,7 +165,7 @@ Device::Device( SDL_Window* window )
     } adapterData;
 
     WGPURequestAdapterOptions requestAdapterOptions {};
-    requestAdapterOptions.backendType     = WGPUBackendType_Undefined;  // WGPUBackendType_Vulkan;
+    requestAdapterOptions.backendType     = WGPUBackendType_Vulkan;
     requestAdapterOptions.powerPreference = WGPUPowerPreference_HighPerformance;
 
     wgpuInstanceRequestAdapter(
@@ -345,7 +345,7 @@ std::shared_ptr<Mesh> Device::createCube( float size, bool _reverseWinding ) con
     constexpr glm::vec3 n[] = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
 
     // 4 unique texture coordinates.
-    constexpr glm::vec3 t[] = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 } };
+    constexpr glm::vec3 t[] = { { 1, 0, 0 }, { 0, 0, 0 }, { 0, 1, 0 }, { 1, 1, 0 } };
 
     // Indices for the vertex positions.
     uint16_t i[24] = {
