@@ -78,13 +78,6 @@ struct MakeTexture : Texture
     {}
 };
 
-struct MakeBindGroup : BindGroup
-{
-    MakeBindGroup( WGPUBindGroup&& bindGroup )
-    : BindGroup( std::move( bindGroup ) )
-    {}
-};
-
 void Device::create( SDL_Window* window )
 {
     assert( !pDevice );
@@ -490,14 +483,6 @@ std::shared_ptr<Sampler> Device::createSampler( const WGPUSamplerDescriptor& sam
 
     return std::make_shared<MakeSampler>( std::move( sampler ),  // NOLINT(performance-move-const-arg)
                                           samplerDescriptor );
-}
-
-std::shared_ptr<BindGroup>
-    WebGPUlib::Device::createBindGroup( const WGPUBindGroupDescriptor& bindGroupDescriptor ) const
-{
-    WGPUBindGroup bindGroup = wgpuDeviceCreateBindGroup( device, &bindGroupDescriptor );
-
-    return std::make_shared<MakeBindGroup>( std::move( bindGroup ) );  // NOLINT(performance-move-const-arg)
 }
 
 void Device::poll( bool sleep )

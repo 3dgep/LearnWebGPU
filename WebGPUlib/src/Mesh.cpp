@@ -1,4 +1,5 @@
 #include <WebGPUlib/Mesh.hpp>
+
 #include <utility>
 
 using namespace WebGPUlib;
@@ -8,7 +9,7 @@ Mesh::Mesh( std::shared_ptr<VertexBuffer> vertexBuffer, std::shared_ptr<IndexBuf
 : indexBuffer { std::move( indexBuffer ) }
 , material { std::move( material ) }
 {
-    vertexBuffers[0] = std::move( vertexBuffer );
+    vertexBuffers.push_back( std::move( vertexBuffer ) );
 }
 
 void Mesh::setVertexBuffer( uint32_t slot, std::shared_ptr<VertexBuffer> vertexBuffer )
@@ -22,10 +23,10 @@ void Mesh::setVertexBuffer( uint32_t slot, std::shared_ptr<VertexBuffer> vertexB
 
 std::shared_ptr<VertexBuffer> Mesh::getVertexBuffer( uint32_t slot ) const
 {
-    vertexBuffers.size() > slot ? vertexBuffers[slot] : nullptr;
+    return vertexBuffers.size() > slot ? vertexBuffers[slot] : nullptr;
 }
 
-const std::vector<std::shared_ptr<VertexBuffer>>& WebGPUlib::Mesh::getVertexBuffers() const
+const std::vector<std::shared_ptr<VertexBuffer>>& Mesh::getVertexBuffers() const
 {
     return vertexBuffers;
 }

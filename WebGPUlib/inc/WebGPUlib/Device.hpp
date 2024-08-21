@@ -64,8 +64,6 @@ public:
 
     std::shared_ptr<Sampler> createSampler( const WGPUSamplerDescriptor& samplerDescriptor ) const;
 
-    std::shared_ptr<BindGroup> createBindGroup( const WGPUBindGroupDescriptor& bindGroupDescriptor ) const;
-
     void poll( bool sleep = false );
 
     WGPUInstance getWGPUInstance() const noexcept

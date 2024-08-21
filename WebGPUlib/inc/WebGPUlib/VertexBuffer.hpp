@@ -25,7 +25,7 @@ public:
         return vertexStride;
     }
 
-    std::size_t getSize() const
+    std::size_t getSize() const override
     {
         return vertexCount * vertexStride;
     }

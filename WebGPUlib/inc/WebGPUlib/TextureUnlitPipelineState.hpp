@@ -2,6 +2,8 @@
 
 #include "GraphicsPipelineState.hpp"
 
+#include <cassert>
+
 namespace WebGPUlib
 {
 class Device;
@@ -19,10 +21,14 @@ public:
     TextureUnlitPipelineState& operator=( const TextureUnlitPipelineState& )     = delete;
     TextureUnlitPipelineState& operator=( TextureUnlitPipelineState&& ) noexcept = delete;
 
-    WGPUBindGroupLayout getBindGroupLayout() const noexcept
+    WGPUBindGroupLayout getWGPUBindGroupLayout( uint32_t groupIndex ) override
     {
+        // This pipeline only has a single bind group.
         return bindGroupLayout;
     }
+
+protected:
+    void bind( GraphicsCommandBuffer& commandBuffer ) override;
 
 private:
     WGPUBindGroupLayout bindGroupLayout = nullptr;

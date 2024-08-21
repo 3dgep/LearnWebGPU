@@ -27,12 +27,12 @@ fn vs_main(in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
     out.position =  mvp * vec4f(in.position, 1.0);
-    out.uv = in.uv;
+    out.uv = in.uv.xy;
     return out;
 }
 
 @fragment
 fn fs_main(in: FragmentIn) -> @location(0) vec4f {
-    return textureSample(albedoTexture, linearRepeatSampler, in.uv);
+    return textureSampleLevel(albedoTexture, linearRepeatSampler, in.uv, 0);
 }
 )"

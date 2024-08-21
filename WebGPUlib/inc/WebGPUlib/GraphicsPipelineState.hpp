@@ -4,6 +4,8 @@
 
 namespace WebGPUlib
 {
+class GraphicsCommandBuffer;
+
 class GraphicsPipelineState
 {
 public:
@@ -17,9 +19,16 @@ public:
         return pipeline;
     }
 
+    virtual WGPUBindGroupLayout getWGPUBindGroupLayout( uint32_t groupIndex ) = 0;
+
 protected:
+
+    friend class GraphicsCommandBuffer;
+
     GraphicsPipelineState() = default;
     virtual ~GraphicsPipelineState();
+
+    virtual void bind( GraphicsCommandBuffer& commandBuffer ) = 0;
 
     WGPURenderPipeline pipeline = nullptr;
 };

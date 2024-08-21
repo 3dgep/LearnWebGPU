@@ -247,15 +247,22 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
     WGPURenderPassDepthStencilAttachment depthStencilAttachment {};
     if ( depthStencilView )
     {
+        WGPULoadOp  stencilLoadOp  = WGPULoadOp_Undefined;
+        WGPUStoreOp stencilStoreOp = WGPUStoreOp_Undefined;
+        if (depthStencilView->getWGPUTextureViewDescriptor().aspect != WGPUTextureAspect_DepthOnly)
+        {
+            stencilLoadOp  = ( clearFlags & ClearFlags::Stencil ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
+            stencilStoreOp = WGPUStoreOp_Store;
+        }
+
         depthStencilAttachment.view = depthStencilView->getWGPUTextureView();
         depthStencilAttachment.depthLoadOp =
             ( clearFlags & ClearFlags::Depth ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
         depthStencilAttachment.depthStoreOp    = WGPUStoreOp_Store;
         depthStencilAttachment.depthClearValue = depth;
         depthStencilAttachment.depthReadOnly   = false;
-        depthStencilAttachment.stencilLoadOp =
-            ( clearFlags & ClearFlags::Stencil ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
-        depthStencilAttachment.stencilStoreOp    = WGPUStoreOp_Store;
+        depthStencilAttachment.stencilLoadOp = stencilLoadOp;
+        depthStencilAttachment.stencilStoreOp    = stencilStoreOp;
         depthStencilAttachment.stencilClearValue = stencil;
         depthStencilAttachment.stencilReadOnly   = false;
     }

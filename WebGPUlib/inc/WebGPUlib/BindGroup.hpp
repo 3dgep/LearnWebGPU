@@ -2,21 +2,30 @@
 
 #include <webgpu/webgpu.h>
 
+#include <vector>
+
 namespace WebGPUlib
 {
+
+class Buffer;
+class Sampler;
+class TextureView;
+
 class BindGroup
 {
 public:
-    WGPUBindGroup getWGPUBindGroup() const
-    {
-        return bindGroup;
-    }
+    void bind( uint32_t binding, const Buffer& buffer, uint64_t offset = 0 );
+    void bind( uint32_t binding, const Sampler& sampler );
+    void bind( uint32_t binding, const TextureView& textureView );
+
+    WGPUBindGroup getWGPUBindGroup( WGPUBindGroupLayout layout ) const;
 
 protected:
-    BindGroup( WGPUBindGroup&& bindGroup );
+    BindGroup();
     virtual ~BindGroup();
 
 private:
-    WGPUBindGroup bindGroup;
+    std::vector<WGPUBindGroupEntry> bindings;
+    mutable WGPUBindGroup           bindGroup = nullptr;
 };
 }  // namespace WebGPUlib

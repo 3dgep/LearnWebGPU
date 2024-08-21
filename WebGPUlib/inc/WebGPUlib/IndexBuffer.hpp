@@ -31,7 +31,7 @@ public:
         return indexStride == 2 ? WGPUIndexFormat_Uint16 : WGPUIndexFormat_Uint32;
     }
 
-    std::size_t getSize() const
+    std::size_t getSize() const override
     {
         return indexCount * indexStride;
     }

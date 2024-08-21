@@ -14,6 +14,8 @@ public:
     Buffer& operator=( const Buffer& )     = delete;
     Buffer& operator=( Buffer&& ) noexcept = delete;
 
+    virtual uint64_t getSize() const = 0;
+
     WGPUBuffer getWGPUBuffer() const
     {
         return buffer;

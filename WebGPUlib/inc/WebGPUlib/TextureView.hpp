@@ -18,6 +18,11 @@ public:
         return textureView;
     }
 
+    const WGPUTextureViewDescriptor& getWGPUTextureViewDescriptor() const
+    {
+        return textureViewDescriptor;
+    }
+
     explicit operator bool() const
     {
         return textureView != nullptr;

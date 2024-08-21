@@ -15,7 +15,7 @@ public:
     UniformBuffer& operator=( const UniformBuffer& ) = delete;
     UniformBuffer& operator=( UniformBuffer&& )      = delete;
 
-    std::size_t getSize() const
+    std::size_t getSize() const override
     {
         return size;
     }

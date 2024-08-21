@@ -17,7 +17,9 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
+#include <glm/gtc/matrix_transform.hpp>  // For matrix transformations.
 #include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 
 #include <iostream>
 
@@ -26,23 +28,25 @@ using namespace WebGPUlib;
 constexpr int WINDOW_WIDTH  = 1280;
 constexpr int WINDOW_HEIGHT = 720;
 const char*   WINDOW_TITLE  = "04 - Mesh";
+SDL_Window*   window        = nullptr;
 
-bool isRunning = true;
+Timer timer;
+bool  isRunning = true;
 
-std::shared_ptr<Mesh>          cubeMesh;
-std::shared_ptr<UniformBuffer> mvpBuffer;
-std::shared_ptr<Texture>       depthTexture;
-std::shared_ptr<TextureView>   depthTextureView;
-std::shared_ptr<Texture>       albedoTexture;
-std::shared_ptr<Sampler>       linearRepeatSampler;
-TextureUnlitPipelineState      textureUnlitPipelineState;
+std::shared_ptr<Mesh>                      cubeMesh;
+std::shared_ptr<UniformBuffer>             mvpBuffer;
+std::shared_ptr<Texture>                   depthTexture;
+std::shared_ptr<TextureView>               depthTextureView;
+std::shared_ptr<Texture>                   albedoTexture;
+std::shared_ptr<Sampler>                   linearRepeatSampler;
+std::unique_ptr<TextureUnlitPipelineState> textureUnlitPipelineState;
 
 void init()
 {
     SDL_Init( SDL_INIT_VIDEO );
 
-    SDL_Window* window = SDL_CreateWindow( WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH,
-                                           WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE );
+    window = SDL_CreateWindow( WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH,
+                               WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE );
 
     if ( !window )
     {
@@ -54,6 +58,7 @@ void init()
 
     // Create a uniform buffer large enough to hold a single 4x4 matrix.
     mvpBuffer = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
+    textureUnlitPipelineState = std::make_unique<TextureUnlitPipelineState>();
 
     // Create the depth texture.
     WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
@@ -117,23 +122,13 @@ void render()
     auto commandBuffer = queue->createGraphicsCommandBuffer( renderTarget, ClearFlags::Color | ClearFlags::Depth,
                                                              { 0.4f, 0.6f, 0.9f, 1.0f }, 1.0f );
 
-    commandBuffer->setGraphicsPipeline( textureUnlitPipelineState );
+    // Set the pipeline state.
+    commandBuffer->setGraphicsPipeline( *textureUnlitPipelineState );
 
     // Bind parameters.
-    WGPUBindGroupEntry bindings[3] {};
-
-    bindings[0].binding = 0;
-    bindings[0].buffer  = mvpBuffer->getWGPUBuffer();
-    bindings[0].offset  = 0;
-    bindings[0].size    = mvpBuffer->getSize();
-
-    bindings[1].binding     = 1;
-    bindings[1].textureView = albedoTexture->getView()->getWGPUTextureView();
-
-    bindings[2].binding = 2;
-    bindings[2].sampler = linearRepeatSampler->getWGPUSampler();
-
-    auto bindGroup = Device::get().createBindGroup( 
+    commandBuffer->bindBuffer( 0, 0, *mvpBuffer );
+    commandBuffer->bindTexture( 0, 1, *albedoTexture->getView() );
+    commandBuffer->bindSampler( 0, 2, *linearRepeatSampler );
 
     commandBuffer->draw( *cubeMesh );
 
@@ -145,23 +140,8 @@ void render()
     Device::get().poll();
 }
 
-void update( void* userdata = nullptr )
+void pollEvents()
 {
-    static Timer    timer;
-    static double   totalTime = 0.0;
-    static uint64_t frames    = 0;
-
-    timer.tick();
-    frames++;
-
-    totalTime += timer.elapsedSeconds();
-    if ( totalTime > 1.0 )
-    {
-        std::cout << "FPS: " << frames << std::endl;
-        totalTime -= 1.0;
-        frames = 0;
-    }
-
     SDL_Event event;
     while ( SDL_PollEvent( &event ) )
     {
@@ -176,9 +156,44 @@ void update( void* userdata = nullptr )
                 isRunning = false;
             }
             break;
-        default:;
+        default:
+            break;
         }
     }
+}
+
+void update( void* userdata = nullptr )
+{
+    // Handle input.
+    pollEvents();
+
+    timer.tick();
+
+    static double   totalTime = 0.0;
+    static uint64_t frames    = 0;
+
+    totalTime += timer.elapsedSeconds();
+    frames++;
+    if ( totalTime > 1.0 )
+    {
+        std::cout << "FPS: " << frames << std::endl;
+        totalTime -= 1.0;
+        frames = 0;
+    }
+
+    // Update the model-view-projection matrix.
+    int width, height;
+    SDL_GetWindowSize( window, &width, &height );
+    float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
+    glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
+    glm::mat4 modelMatrix      = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
+    glm::mat4 viewMatrix       = glm::lookAt( glm::vec3 { 0, 0, 10 }, glm::vec3 { 0, 0, 0 }, glm::vec3 { 0, 1, 0 } );
+    glm::mat4 projectionMatrix = glm::perspective(
+        glm::radians( 45.0f ), static_cast<float>( width ) / static_cast<float>( height ), 0.1f, 100.0f );
+    glm::mat4 mvpMatrix = projectionMatrix * viewMatrix * modelMatrix;
+
+    auto queue = Device::get().getQueue();
+    queue->writeBuffer( *mvpBuffer, mvpMatrix );
 
     render();
 }

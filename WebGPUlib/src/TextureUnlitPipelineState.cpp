@@ -1,3 +1,5 @@
+#include "WebGPUlib/GraphicsCommandBuffer.hpp"
+
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/TextureUnlitPipelineState.hpp>
@@ -157,4 +159,10 @@ TextureUnlitPipelineState::~TextureUnlitPipelineState()
 {
     if ( bindGroupLayout )
         wgpuBindGroupLayoutRelease( bindGroupLayout );
+}
+
+void TextureUnlitPipelineState::bind( GraphicsCommandBuffer& commandBuffer )
+{
+    auto passEncoder = commandBuffer.getWGPUPassEncoder();
+    wgpuRenderPassEncoderSetPipeline( passEncoder, pipeline );
 }
