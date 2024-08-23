@@ -41,6 +41,7 @@ std::shared_ptr<Texture>                   depthTexture;
 std::shared_ptr<TextureView>               depthTextureView;
 std::shared_ptr<Texture>                   albedoTexture;
 std::shared_ptr<Sampler>                   linearRepeatSampler;
+std::shared_ptr<Scene>                     scene;
 std::unique_ptr<TextureUnlitPipelineState> textureUnlitPipelineState;
 
 void onResize( uint32_t width, uint32_t height )
@@ -102,6 +103,7 @@ void init()
 
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
     cubeMesh      = Device::get().createCube(2.0f);
+    scene         = Device::get().loadScene( "assets/crytek-sponza/sponza_nobanner.obj" );
 
     // Setup the texture sampler.
     WGPUSamplerDescriptor linearRepeatSamplerDesc {};

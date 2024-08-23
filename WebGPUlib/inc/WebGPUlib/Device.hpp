@@ -16,6 +16,7 @@ class Queue;
 class IndexBuffer;
 class Mesh;
 class Sampler;
+class Scene;
 class Surface;
 class Texture;
 class UniformBuffer;
@@ -48,6 +49,8 @@ public:
     std::shared_ptr<Texture> loadTexture( const std::filesystem::path& filePath );
 
     void generateMips( Texture& texture );
+
+    std::shared_ptr<Scene> loadScene( const std::filesystem::path& filePath );
 
     template<typename T>
     std::shared_ptr<VertexBuffer> createVertexBuffer( const std::vector<T>& vertices ) const;

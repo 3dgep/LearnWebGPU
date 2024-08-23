@@ -6,6 +6,8 @@
 #include <WebGPUlib/Mesh.hpp>
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/Sampler.hpp>
+#include <WebGPUlib/Scene.hpp>
+#include <WebGPUlib/SceneNode.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/Texture.hpp>
 #include <WebGPUlib/UniformBuffer.hpp>
@@ -18,6 +20,10 @@
 #ifdef WEBGPU_BACKEND_WGPU
     #include <webgpu/wgpu.h>  // Include non-standard functions.
 #endif
+
+#include "WebGPUlib/Material.hpp"
+
+#include <tiny_obj_loader.h>
 
 #include <glm/vec3.hpp>
 #include <sdl2webgpu.h>
@@ -53,7 +59,7 @@ int bitScanForward( uint64_t bb )
 template<typename T>
 constexpr T DivideByMultiple( T value, size_t alignment )
 {
-    return static_cast<T>(( value + alignment - 1 ) / alignment);
+    return static_cast<T>( ( value + alignment - 1 ) / alignment );
 }
 
 std::unique_ptr<Device> pDevice { nullptr };
@@ -522,7 +528,7 @@ void Device::generateMips( Texture& texture )
 
         // Write the mip info to the buffer.
         uint32_t bufferOffset = 256 * pass;
-        queue->writeBuffer( *uniformBuffer, &mip, sizeof(Mip), bufferOffset );
+        queue->writeBuffer( *uniformBuffer, &mip, sizeof( Mip ), bufferOffset );
 
         commandBuffer->bindBuffer( 0, 0, *uniformBuffer, bufferOffset, sizeof( Mip ) );
 
@@ -569,7 +575,7 @@ void Device::generateMips( Texture& texture )
             dstMipViewDesc.baseArrayLayer  = 0;
             dstMipViewDesc.arrayLayerCount = 1;
             dstMipViewDesc.aspect          = WGPUTextureAspect_All;
-            auto dstMipView     = dummyTexture->getView( &dstMipViewDesc );
+            auto dstMipView                = dummyTexture->getView( &dstMipViewDesc );
 
             commandBuffer->bindTexture( 0, 2 + dstMip, *dstMipView );
         }
@@ -580,6 +586,148 @@ void Device::generateMips( Texture& texture )
     }
 
     queue->submit( *commandBuffer );
+}
+
+glm::vec4 parseColor( const tinyobj::real_t color[3] )
+{
+    return { color[0], color[1], color[2], 1.0f };
+}
+
+std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath )
+{
+    if ( !exists( filePath ) || !is_regular_file( filePath ) )
+    {
+        std::cerr << "ERROR: Failed to load scene file: " << filePath << std::endl;
+        return nullptr;
+    }
+
+    tinyobj::ObjReaderConfig config {};
+    tinyobj::ObjReader       reader;
+
+    if ( !reader.ParseFromFile( filePath.string(), config ) )
+    {
+        if ( !reader.Error().empty() )
+        {
+            std::cerr << "ERROR: Failed to parse model file: " << filePath << std::endl;
+            std::cerr << reader.Error() << std::endl;
+        }
+        return nullptr;
+    }
+
+    if ( !reader.Warning().empty() )
+    {
+        std::cout << "WARNING: Warning parsing model file: " << filePath << std::endl;
+        std::cout << reader.Warning() << std::endl;
+    }
+
+    auto rootNode = std::make_shared<SceneNode>();
+
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+    auto& mats   = reader.GetMaterials();
+
+    auto parentPath = filePath.parent_path();
+
+    std::vector<std::shared_ptr<Material>> materials;
+    materials.reserve( mats.size() );
+
+    // Loop over materials
+    for ( auto& m: mats )
+    {
+        glm::vec4 diffuse       = parseColor( m.diffuse );
+        glm::vec4 specular      = parseColor( m.specular );
+        glm::vec4 ambient       = parseColor( m.ambient );
+        glm::vec4 emissive      = parseColor( m.emission );
+        float     specularPower = m.shininess;
+
+        auto diffuseTexture  = m.diffuse_texname.empty() ? nullptr : loadTexture( parentPath / m.diffuse_texname );
+        auto alphaTexture    = m.alpha_texname.empty() ? nullptr : loadTexture( parentPath / m.alpha_texname );
+        auto specularTexture = m.specular_texname.empty() ? nullptr : loadTexture( parentPath / m.specular_texname );
+        auto specularPowerTexture =
+            m.specular_highlight_texname.empty() ? nullptr : loadTexture( parentPath / m.specular_highlight_texname );
+        auto normalTexture   = m.bump_texname.empty() ? nullptr : loadTexture( parentPath / m.bump_texname );
+        auto ambientTexture  = m.ambient_texname.empty() ? nullptr : loadTexture( parentPath / m.ambient_texname );
+        auto emissiveTexture = m.emissive_texname.empty() ? nullptr : loadTexture( parentPath / m.emissive_texname );
+
+        std::shared_ptr<Material> material = std::make_shared<Material>();
+        material->setDiffuse( diffuse );
+        material->setSpecular( specular );
+        material->setSpecularPower( specularPower );
+        material->setAmbient( ambient );
+        material->setEmissive( emissive );
+        material->setTexture( TextureSlot::Diffuse, diffuseTexture );
+        material->setTexture( TextureSlot::Opacity, alphaTexture );
+        material->setTexture( TextureSlot::Specular, specularTexture );
+        material->setTexture( TextureSlot::SpecularPower, specularPowerTexture );
+        material->setTexture( TextureSlot::Normal, normalTexture );
+        material->setTexture( TextureSlot::Ambient, ambientTexture );
+        material->setTexture( TextureSlot::Emissive, emissiveTexture );
+
+        materials.push_back( material );
+    }
+
+    // Loop over shapes
+    for ( auto& s: shapes )
+    {
+        auto& m = s.mesh;
+
+        std::vector<VertexPositionNormalTexture> vertices;
+        vertices.reserve( m.num_face_vertices.size() * 3 );
+
+        size_t indexOffset = 0;
+
+        for ( auto numVerts: m.num_face_vertices )
+        {
+            // We only want 3 vertices per face.
+            assert( numVerts == 3 );
+
+            // Loop over the vertices of the triangle.
+            for ( size_t v = 0; v < numVerts; ++v )
+            {
+                VertexPositionNormalTexture vert {};
+
+                auto idx = m.indices[indexOffset + v];
+
+                vert.position.x = attrib.vertices[idx.vertex_index * 3 + 0];
+                vert.position.y = attrib.vertices[idx.vertex_index * 3 + 1];
+                vert.position.z = attrib.vertices[idx.vertex_index * 3 + 2];
+
+                if ( idx.normal_index >= 0 )
+                {
+                    vert.normal.x = attrib.normals[idx.normal_index * 3 + 0];
+                    vert.normal.y = attrib.normals[idx.normal_index * 3 + 1];
+                    vert.normal.z = attrib.normals[idx.normal_index * 3 + 2];
+                }
+
+                if ( idx.texcoord_index >= 0 )
+                {
+                    vert.texCoord.x = attrib.texcoords[idx.texcoord_index * 2 + 0];
+                    vert.texCoord.y = attrib.texcoords[idx.texcoord_index * 2 + 1];
+                }
+
+                vertices.push_back( vert );
+            }
+
+            indexOffset += numVerts;
+        }
+
+        auto vertexBuffer = createVertexBuffer( vertices );
+        auto mesh         = std::make_shared<Mesh>( vertexBuffer );
+
+        if ( !m.material_ids.empty() )
+        {
+            // Per-face materials are not supported.
+            auto materialId = m.material_ids[0];
+            if ( materialId >= 0 && materialId < static_cast<int>( materials.size() ) )
+            {
+                mesh->setMaterial( materials[materialId] );
+            }
+        }
+
+        rootNode->addMesh( mesh );
+    }
+
+    return std::make_shared<Scene>( rootNode );
 }
 
 std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t vertexCount,

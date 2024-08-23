@@ -22,6 +22,8 @@ set( INC
 	inc/WebGPUlib/Queue.hpp
 	inc/WebGPUlib/RenderTarget.hpp
 	inc/WebGPUlib/Sampler.hpp
+	inc/WebGPUlib/Scene.hpp
+	inc/WebGPUlib/SceneNode.hpp
 	inc/WebGPUlib/Surface.hpp
 	inc/WebGPUlib/Texture.hpp
 	inc/WebGPUlib/TextureView.hpp
@@ -46,6 +48,8 @@ set( SRC
 	src/Queue.cpp
 	src/RenderTarget.cpp
 	src/Sampler.cpp
+	src/Scene.cpp
+	src/SceneNode.cpp
 	src/Surface.cpp
 	src/Texture.cpp
 	src/TextureView.cpp
@@ -74,5 +78,5 @@ PUBLIC
 
 target_link_libraries( ${TARGET_NAME}
 PUBLIC
-	SDL2::SDL2 glm::glm webgpu sdl2webgpu stb_image
+	SDL2::SDL2 glm::glm webgpu sdl2webgpu stb_image tinyobjloader
 )
