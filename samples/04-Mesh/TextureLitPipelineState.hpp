@@ -7,17 +7,17 @@ namespace WebGPUlib
 class Device;
 class Surface;
 
-class TextureUnlitPipelineState : public GraphicsPipelineState
+class TextureLitPipelineState : public GraphicsPipelineState
 {
 public:
-    TextureUnlitPipelineState();
-    ~TextureUnlitPipelineState() override;
+    TextureLitPipelineState();
+    ~TextureLitPipelineState() override;
 
-    TextureUnlitPipelineState( const TextureUnlitPipelineState& )     = delete;
-    TextureUnlitPipelineState( TextureUnlitPipelineState&& ) noexcept = delete;
+    TextureLitPipelineState( const TextureLitPipelineState& )         = delete;
+    TextureLitPipelineState( TextureLitPipelineState&& ) noexcept = delete;
 
-    TextureUnlitPipelineState& operator=( const TextureUnlitPipelineState& )     = delete;
-    TextureUnlitPipelineState& operator=( TextureUnlitPipelineState&& ) noexcept = delete;
+    TextureLitPipelineState&   operator=( const TextureLitPipelineState& )       = delete;
+    TextureLitPipelineState& operator=( TextureLitPipelineState&& ) noexcept = delete;
 
     WGPUBindGroupLayout getWGPUBindGroupLayout( uint32_t groupIndex ) override
     {

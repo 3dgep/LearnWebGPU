@@ -46,6 +46,8 @@ void GraphicsCommandBuffer::setGraphicsPipeline( GraphicsPipelineState& pipeline
     // Keep track of the currently bound pipeline state.
     currentPipelineState = &pipeline;
 
+
+
     pipeline.bind( *this );
 }
 

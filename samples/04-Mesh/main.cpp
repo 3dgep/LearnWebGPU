@@ -17,6 +17,9 @@
 #endif
 
 #define SDL_MAIN_HANDLED
+#include "WebGPUlib/Scene.hpp"
+#include "WebGPUlib/SceneNode.hpp"
+
 #include <SDL2/SDL.h>
 
 #include <glm/gtc/matrix_transform.hpp>  // For matrix transformations.
@@ -144,6 +147,12 @@ void render()
     commandBuffer->bindSampler( 0, 2, *linearRepeatSampler );
 
     commandBuffer->draw( *cubeMesh );
+
+    auto& meshes = scene->getRootNode()->getMeshes();
+    for (auto& mesh : meshes)
+    {
+        commandBuffer->draw( *mesh );
+    }
 
     queue->submit( *commandBuffer );
 

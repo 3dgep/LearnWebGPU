@@ -9,7 +9,10 @@ set( SRC
 	main.cpp
 	TextureUnlitPipelineState.hpp
 	TextureUnlitPipelineState.cpp
+	TextureLitPipelineState.hpp
+	TextureLitPipelineState.cpp
 	TextureUnlitShader.wgsl
+	TextureLitShader.wgsl
 )
 
 add_executable( ${TARGET_NAME} ${SRC} )

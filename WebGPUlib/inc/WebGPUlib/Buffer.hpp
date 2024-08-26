@@ -1,6 +1,8 @@
 #pragma once
 
 #include <webgpu/webgpu.h>
+#include <cstddef>
+
 
 namespace WebGPUlib
 {
@@ -14,7 +16,7 @@ public:
     Buffer& operator=( const Buffer& )     = delete;
     Buffer& operator=( Buffer&& ) noexcept = delete;
 
-    virtual uint64_t getSize() const = 0;
+    virtual std::size_t getSize() const = 0;
 
     WGPUBuffer getWGPUBuffer() const
     {

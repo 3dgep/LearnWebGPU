@@ -402,15 +402,26 @@ std::shared_ptr<Texture> Device::createTexture( const WGPUTextureDescriptor& tex
                                           textureDescriptor );  // NOLINT(performance-move-const-arg)
 }
 
-std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& filePath )
+std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& _filePath )
 {
+    auto filePath = _filePath.string();
+    // Replace double backslashes in the file path.
+    // This is required on POSIX systems (like Emscripten).
+    std::replace( filePath.begin(), filePath.end(), '\\', '/' ); 
+
+    if ( !std::filesystem::exists(filePath) || !std::filesystem::is_regular_file( filePath ) )
+    {
+        std::cerr << "ERROR: File not found or is not a regular file: " << filePath << std::endl;
+        return nullptr;
+    }
+
     // Load the texture
     int            width, height, channels;
-    unsigned char* data = stbi_load( filePath.string().c_str(), &width, &height, &channels, STBI_rgb_alpha );
+    unsigned char* data = stbi_load( filePath.c_str(), &width, &height, &channels, STBI_rgb_alpha );
 
     if ( !data )
     {
-        std::cerr << "Failed to load texture: " << filePath << std::endl;
+        std::cerr << "ERROR: Failed to load texture: " << filePath << std::endl;
         return nullptr;
     }
 
@@ -418,7 +429,7 @@ std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& fileP
 
     // Create the texture object.
     WGPUTextureDescriptor textureDesc {};
-    textureDesc.label       = filePath.filename().string().c_str();
+    textureDesc.label       = _filePath.filename().string().c_str();
     textureDesc.dimension   = WGPUTextureDimension_2D;
     textureDesc.format      = WGPUTextureFormat_RGBA8Unorm;
     textureDesc.size        = textureSize;
@@ -440,6 +451,8 @@ std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& fileP
     stbi_image_free( data );
 
     generateMips( *tex );
+
+    std::cout << "INFO: Loaded texture: " << filePath << std::endl;
 
     return tex;
 }
