@@ -15,6 +15,7 @@ class TextureView;
 class BindGroup
 {
 public:
+    void bind( uint32_t binding, WGPUBuffer buffer, uint64_t offset, uint64_t size );
     void bind( uint32_t binding, const Buffer& buffer, uint64_t offset = 0, std::optional<uint64_t> size = {} );
     void bind( uint32_t binding, const Sampler& sampler );
     void bind( uint32_t binding, const TextureView& textureView );

@@ -1,10 +1,8 @@
-#include "WebGPUlib/BindGroup.hpp"
-
+#include <WebGPUlib/BindGroup.hpp>
 #include <WebGPUlib/GraphicsCommandBuffer.hpp>
 #include <WebGPUlib/GraphicsPipelineState.hpp>
 #include <WebGPUlib/IndexBuffer.hpp>
 #include <WebGPUlib/Mesh.hpp>
-#include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/VertexBuffer.hpp>
 
 #include <iostream>
@@ -45,8 +43,6 @@ void GraphicsCommandBuffer::setGraphicsPipeline( GraphicsPipelineState& pipeline
 {
     // Keep track of the currently bound pipeline state.
     currentPipelineState = &pipeline;
-
-
 
     pipeline.bind( *this );
 }
@@ -102,6 +98,8 @@ WGPUCommandBuffer GraphicsCommandBuffer::finish()
 
     WGPUCommandBufferDescriptor commandBufferDescriptor {};
     commandBufferDescriptor.label = "Graphics Command Buffer";
+
+    reset();
 
     return wgpuCommandEncoderFinish( commandEncoder, &commandBufferDescriptor );
 }

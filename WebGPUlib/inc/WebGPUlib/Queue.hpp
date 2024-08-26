@@ -29,6 +29,7 @@ class Queue
 public:
     template<typename T>
     void writeBuffer( Buffer& buffer, const T& data ) const;
+    void writeBuffer( WGPUBuffer buffer, const void* data, std::size_t size, uint64_t offset = 0 ) const;
     void writeBuffer( const Buffer& buffer, const void* data, std::size_t size, uint64_t offset = 0 ) const;
 
     void writeTexture( Texture& texture, uint32_t mip, const void* data, std::size_t size ) const;

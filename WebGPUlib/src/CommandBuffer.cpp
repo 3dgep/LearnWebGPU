@@ -1,5 +1,9 @@
+#include "WebGPUlib/Queue.hpp"
+
 #include <WebGPUlib/BindGroup.hpp>
 #include <WebGPUlib/CommandBuffer.hpp>
+#include <WebGPUlib/Device.hpp>
+#include <WebGPUlib/UploadBuffer.hpp>
 
 #ifdef WEBGPU_BACKEND_DAWN
 void wgpuCommandEncoderReference( WGPUCommandEncoder encoder )
@@ -15,48 +19,12 @@ struct MakeBindGroup : BindGroup
     MakeBindGroup() = default;
 };
 
-CommandBuffer::CommandBuffer() = default;
-
-CommandBuffer::CommandBuffer( const CommandBuffer& other )
-: commandEncoder { other.commandEncoder }
+struct MakeUploadBuffer : UploadBuffer
 {
-    if ( commandEncoder )
-        wgpuCommandEncoderReference( commandEncoder );
-}
-
-CommandBuffer::CommandBuffer( CommandBuffer&& other ) noexcept
-: commandEncoder { other.commandEncoder }
-{
-    other.commandEncoder = nullptr;
-}
-
-CommandBuffer& CommandBuffer::operator=( const CommandBuffer& other )
-{
-    if ( this == &other )
-        return *this;
-
-    if ( commandEncoder )
-        wgpuCommandEncoderRelease( commandEncoder );
-
-    commandEncoder = other.commandEncoder;
-    wgpuCommandEncoderReference( commandEncoder );
-
-    return *this;
-}
-
-CommandBuffer& CommandBuffer::operator=( CommandBuffer&& other ) noexcept
-{
-    if ( this == &other )
-        return *this;
-
-    if ( commandEncoder )
-        wgpuCommandEncoderRelease( commandEncoder );
-
-    commandEncoder       = other.commandEncoder;
-    other.commandEncoder = nullptr;
-
-    return *this;
-}
+    MakeUploadBuffer( WGPUBufferUsage usage, std::size_t pageSize )
+    : UploadBuffer( usage, pageSize )
+    {}
+};
 
 std::shared_ptr<BindGroup> CommandBuffer::getBindGroup( uint32_t groupIndex )
 {
@@ -75,14 +43,15 @@ std::shared_ptr<BindGroup> CommandBuffer::getBindGroup( uint32_t groupIndex )
 
 void CommandBuffer::commitBindGroups()
 {
-    for (uint32_t i = 0; i < bindGroups.size(); ++i)
+    for ( uint32_t i = 0; i < bindGroups.size(); ++i )
     {
         if ( auto& bindGroup = bindGroups[i] )
             setBindGroup( i, *bindGroup );
     }
 }
 
-void CommandBuffer::bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset, std::optional<uint64_t> size )
+void CommandBuffer::bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset,
+                                std::optional<uint64_t> size )
 {
     auto bindGroup = getBindGroup( groupIndex );
     bindGroup->bind( binding, buffer, offset, size );
@@ -100,13 +69,33 @@ void CommandBuffer::bindTexture( uint32_t groupIndex, uint32_t binding, const Te
     bindGroup->bind( binding, texture );
 }
 
+void CommandBuffer::bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t binding, const void* data,
+                                              std::size_t sizeInBytes )
+{
+    auto allocation = uniformUploadBuffer->allocate( sizeInBytes, 256 );
+
+    auto queue = Device::get().getQueue();
+
+    queue->writeBuffer( allocation.buffer, data, sizeInBytes, allocation.offset );
+
+    auto bindGroup = getBindGroup( groupIndex );
+    bindGroup->bind( binding, allocation.buffer, allocation.offset, sizeInBytes );
+}
+
 CommandBuffer::CommandBuffer(
     WGPUCommandEncoder&& _commandEncoder )  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
 : commandEncoder { _commandEncoder }
-{}
+{
+    uniformUploadBuffer = std::make_unique<MakeUploadBuffer>( WGPUBufferUsage_Uniform, _2MB );
+}
 
 CommandBuffer::~CommandBuffer()
 {
     if ( commandEncoder )
         wgpuCommandEncoderRelease( commandEncoder );
+}
+
+void CommandBuffer::reset()
+{
+    uniformUploadBuffer->reset();
 }

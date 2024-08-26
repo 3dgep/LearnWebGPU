@@ -1,24 +1,28 @@
 #include "TextureUnlitPipelineState.hpp"
 
+#include <Camera.hpp>
+#include <Timer.hpp>
+
 #include <WebGPUlib/Device.hpp>
+#include <WebGPUlib/GraphicsCommandBuffer.hpp>
+#include <WebGPUlib/Mesh.hpp>
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/RenderTarget.hpp>
 #include <WebGPUlib/Sampler.hpp>
+#include <WebGPUlib/Scene.hpp>
+#include <WebGPUlib/SceneNode.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/Texture.hpp>
 #include <WebGPUlib/TextureView.hpp>
 #include <WebGPUlib/UniformBuffer.hpp>
-#include <WebGPUlib/GraphicsCommandBuffer.hpp>
-
-#include <Timer.hpp>
+#include <WebGPUlib/VertexBuffer.hpp>
 
 #ifdef __EMSCRIPTEN__
     #include <emscripten/html5.h>
 #endif
 
 #define SDL_MAIN_HANDLED
-#include "WebGPUlib/Scene.hpp"
-#include "WebGPUlib/SceneNode.hpp"
+#include "WebGPUlib/Material.hpp"
 
 #include <SDL2/SDL.h>
 
@@ -35,8 +39,9 @@ constexpr int WINDOW_HEIGHT = 720;
 const char*   WINDOW_TITLE  = "04 - Mesh";
 SDL_Window*   window        = nullptr;
 
-Timer timer;
-bool  isRunning = true;
+Timer  timer;
+Camera camera;
+bool   isRunning = true;
 
 std::shared_ptr<Mesh>                      cubeMesh;
 std::shared_ptr<UniformBuffer>             mvpBuffer;
@@ -80,6 +85,10 @@ void onResize( uint32_t width, uint32_t height )
     depthTextureViewDescriptor.aspect          = WGPUTextureAspect_DepthOnly;
 
     depthTextureView = depthTexture->getView( &depthTextureViewDescriptor );
+
+    // Update the camera's projection matrix.
+    camera.setProjection( glm::radians( 45.0f ), static_cast<float>( width ) / static_cast<float>( height ), 0.1f,
+                          1000.0f );
 }
 
 void init()
@@ -101,11 +110,13 @@ void init()
     mvpBuffer                 = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
     textureUnlitPipelineState = std::make_unique<TextureUnlitPipelineState>();
 
+    camera.setLookAt( { 0, 0, 10 }, { 0, 0, 0 }, { 0, 1, 0 } );
+
     // Resize to configure the depth texture.
     onResize( WINDOW_WIDTH, WINDOW_HEIGHT );
 
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
-    cubeMesh      = Device::get().createCube(2.0f);
+    cubeMesh      = Device::get().createCube( 2.0f );
     scene         = Device::get().loadScene( "assets/crytek-sponza/sponza_nobanner.obj" );
 
     // Setup the texture sampler.
@@ -123,6 +134,32 @@ void init()
     linearRepeatSamplerDesc.maxAnisotropy = 8;
 
     linearRepeatSampler = Device::get().createSampler( linearRepeatSamplerDesc );
+}
+
+void renderNode( std::shared_ptr<GraphicsCommandBuffer> commandBuffer, std::shared_ptr<SceneNode> node )
+{
+    auto worldMatrix      = node->getWorldTransform();
+    auto viewMatrix       = camera.getViewMatrix();
+    auto projectionMatrix = camera.getProjectionMatrix();
+
+    auto mvp = projectionMatrix * viewMatrix * worldMatrix;
+
+    commandBuffer->bindDynamicUniformBuffer( 0, 0, mvp );
+
+    for ( auto& mesh: node->getMeshes() )
+    {
+        auto material = mesh->getMaterial();
+        if (auto diffuseTexture = material->getTexture( TextureSlot::Diffuse ))
+        {
+            commandBuffer->bindTexture( 0, 1, *( diffuseTexture->getView() ) );
+            commandBuffer->draw( *mesh );
+        }
+    }
+
+    for (auto& child : node->getChildren())
+    {
+        renderNode( commandBuffer, node );
+    }
 }
 
 void render()
@@ -148,11 +185,8 @@ void render()
 
     commandBuffer->draw( *cubeMesh );
 
-    auto& meshes = scene->getRootNode()->getMeshes();
-    for (auto& mesh : meshes)
-    {
-        commandBuffer->draw( *mesh );
-    }
+    // Render the scene.
+    renderNode( commandBuffer, scene->getRootNode() );
 
     queue->submit( *commandBuffer );
 
@@ -213,13 +247,12 @@ void update( void* userdata = nullptr )
     // Update the model-view-projection matrix.
     int width, height;
     SDL_GetWindowSize( window, &width, &height );
-    float angle = static_cast<float>( timer.totalSeconds() * 90.0 );
+    float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
     glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
     glm::mat4 modelMatrix      = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
-    glm::mat4 viewMatrix       = glm::lookAt( glm::vec3 { 0, 0, 10 }, glm::vec3 { 0, 0, 0 }, glm::vec3 { 0, 1, 0 } );
-    glm::mat4 projectionMatrix = glm::perspective(
-        glm::radians( 45.0f ), static_cast<float>( width ) / static_cast<float>( height ), 0.1f, 100.0f );
-    glm::mat4 mvpMatrix = projectionMatrix * viewMatrix * modelMatrix;
+    glm::mat4 viewMatrix       = camera.getViewMatrix();
+    glm::mat4 projectionMatrix = camera.getProjectionMatrix();
+    glm::mat4 mvpMatrix        = projectionMatrix * viewMatrix * modelMatrix;
 
     auto queue = Device::get().getQueue();
     queue->writeBuffer( *mvpBuffer, mvpMatrix );

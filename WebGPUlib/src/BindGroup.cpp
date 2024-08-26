@@ -13,18 +13,23 @@ BindGroup::~BindGroup()
         wgpuBindGroupRelease( bindGroup );
 }
 
-void BindGroup::bind( uint32_t binding, const Buffer& buffer, uint64_t offset, std::optional<uint64_t> size )
+void BindGroup::bind( uint32_t binding, WGPUBuffer buffer, uint64_t offset, uint64_t size )
 {
     if ( bindings.size() <= binding )
         bindings.resize( binding + 1, {} );
 
     WGPUBindGroupEntry entry {};
     entry.binding = binding;
-    entry.buffer  = buffer.getWGPUBuffer();
+    entry.buffer  = buffer;
     entry.offset  = offset;
-    entry.size    = size ? *size : buffer.getSize();
+    entry.size    = size;
 
     bindings[binding] = entry;
+}
+
+void BindGroup::bind( uint32_t binding, const Buffer& buffer, uint64_t offset, std::optional<uint64_t> size )
+{
+    bind( binding, buffer.getWGPUBuffer(), offset, size ? *size : buffer.getSize() );
 }
 
 void BindGroup::bind( uint32_t binding, const Sampler& sampler )

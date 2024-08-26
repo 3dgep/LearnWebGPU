@@ -1,6 +1,7 @@
 #include <WebGPUlib/BindGroup.hpp>
 #include <WebGPUlib/ComputeCommandBuffer.hpp>
 #include <WebGPUlib/ComputePipelineState.hpp>
+#include <WebGPUlib/UploadBuffer.hpp>
 
 #include <iostream>
 
@@ -53,9 +54,11 @@ WGPUCommandBuffer ComputeCommandBuffer::finish()
     wgpuComputePassEncoderEnd( passEncoder );
 
     currentPipelineState = nullptr;
-
+ 
     WGPUCommandBufferDescriptor commandBufferDesc {};
     commandBufferDesc.label = "Compute Command Buffer";
+
+    reset();
 
     return wgpuCommandEncoderFinish( commandEncoder, &commandBufferDesc );
 }

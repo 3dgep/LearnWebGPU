@@ -13,19 +13,25 @@ class BindGroup;
 class Buffer;
 class Sampler;
 class TextureView;
+class UploadBuffer;
 
 class CommandBuffer
 {
 public:
-    CommandBuffer();
-    CommandBuffer( const CommandBuffer& );
-    CommandBuffer( CommandBuffer&& ) noexcept;
-    CommandBuffer& operator=( const CommandBuffer& );
-    CommandBuffer& operator=( CommandBuffer&& ) noexcept;
+    CommandBuffer() = delete;
+    CommandBuffer( const CommandBuffer& ) = delete;
+    CommandBuffer( CommandBuffer&& ) noexcept = delete;
+    CommandBuffer& operator=( const CommandBuffer& ) = delete;
+    CommandBuffer& operator=( CommandBuffer&& ) noexcept = delete;
 
     void bindBuffer( uint32_t groupIndex, uint32_t binding, const Buffer& buffer, uint64_t offset = 0, std::optional<uint64_t> size = {} );
     void bindSampler( uint32_t groupIndex, uint32_t binding, const Sampler& sampler );
     void bindTexture( uint32_t groupIndex, uint32_t binding, const TextureView& texture );
+
+    void bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t binding, const void* data, std::size_t sizeInBytes );
+    template<typename T>
+    void bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t binding, const T& data );
+
 
     WGPUCommandEncoder getWGPUCommandEncoder() const
     {
@@ -39,6 +45,9 @@ protected:
     friend class Queue;
     virtual WGPUCommandBuffer finish() = 0;
 
+    // Reset dynamic upload buffers.
+    void reset();
+
     virtual void setBindGroup( uint32_t groupIndex, const BindGroup& bindGroup ) = 0;
     std::shared_ptr<BindGroup> getBindGroup( uint32_t groupIndex );
 
@@ -46,5 +55,12 @@ protected:
 
     WGPUCommandEncoder commandEncoder = nullptr;
     std::vector<std::shared_ptr<BindGroup>> bindGroups;
+    std::unique_ptr<UploadBuffer>           uniformUploadBuffer;
 };
+
+template<typename T>
+void CommandBuffer::bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t binding, const T& data )
+{
+    bindDynamicUniformBuffer( groupIndex, binding, &data, sizeof( T ) );
+}
 }  // namespace WebGPUlib

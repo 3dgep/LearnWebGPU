@@ -28,9 +28,14 @@ struct MakeComputeCommandBuffer : ComputeCommandBuffer
     {}
 };
 
+void Queue::writeBuffer( WGPUBuffer buffer, const void* data, std::size_t size, uint64_t offset ) const
+{
+    wgpuQueueWriteBuffer( queue, buffer, offset, data, size );
+}
+
 void Queue::writeBuffer( const Buffer& buffer, const void* data, std::size_t size, uint64_t offset ) const
 {
-    wgpuQueueWriteBuffer( queue, buffer.getWGPUBuffer(), offset, data, size );
+    writeBuffer( buffer.getWGPUBuffer(), data, size, offset );
 }
 
 static uint32_t bytesPerPixel( WGPUTextureFormat format, WGPUTextureAspect aspect )

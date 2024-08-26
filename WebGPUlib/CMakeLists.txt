@@ -11,11 +11,13 @@ set( INC
 	inc/WebGPUlib/CommandBuffer.hpp
 	inc/WebGPUlib/ComputeCommandBuffer.hpp
 	inc/WebGPUlib/ComputePipelineState.hpp
+	inc/WebGPUlib/Defines.hpp
 	inc/WebGPUlib/Device.hpp
 	inc/WebGPUlib/GenerateMipsPipelineState.hpp
 	inc/WebGPUlib/GraphicsCommandBuffer.hpp
 	inc/WebGPUlib/GraphicsPipelineState.hpp
 	inc/WebGPUlib/Hash.hpp
+	inc/WebGPUlib/Helpers.hpp
 	inc/WebGPUlib/IndexBuffer.hpp
 	inc/WebGPUlib/Material.hpp
 	inc/WebGPUlib/Mesh.hpp
@@ -28,6 +30,7 @@ set( INC
 	inc/WebGPUlib/Texture.hpp
 	inc/WebGPUlib/TextureView.hpp
 	inc/WebGPUlib/UniformBuffer.hpp
+	inc/WebGPUlib/UploadBuffer.hpp
 	inc/WebGPUlib/Vertex.hpp
 	inc/WebGPUlib/VertexBuffer.hpp
 )
@@ -54,6 +57,7 @@ set( SRC
 	src/Texture.cpp
 	src/TextureView.cpp
 	src/UniformBuffer.cpp
+	src/UploadBuffer.cpp
 	src/Vertex.cpp
 	src/VertexBuffer.cpp
 )
