@@ -1,6 +1,7 @@
 #include "TextureUnlitPipelineState.hpp"
 
 #include <Camera.hpp>
+#include <CameraController.hpp>
 #include <Timer.hpp>
 
 #include <WebGPUlib/Device.hpp>
@@ -39,9 +40,11 @@ constexpr int WINDOW_HEIGHT = 720;
 const char*   WINDOW_TITLE  = "04 - Mesh";
 SDL_Window*   window        = nullptr;
 
-Timer  timer;
-Camera camera;
-bool   isRunning = true;
+Timer                             timer;
+Camera                            camera;
+std::unique_ptr<CameraController> cameraController;
+
+bool isRunning = true;
 
 std::shared_ptr<Mesh>                      cubeMesh;
 std::shared_ptr<UniformBuffer>             mvpBuffer;
@@ -88,12 +91,15 @@ void onResize( uint32_t width, uint32_t height )
 
     // Update the camera's projection matrix.
     camera.setProjection( glm::radians( 45.0f ), static_cast<float>( width ) / static_cast<float>( height ), 0.1f,
-                          1000.0f );
+                          10000.0f );
 }
 
 void init()
 {
-    SDL_Init( SDL_INIT_VIDEO );
+    SDL_Init( SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER );
+
+    // Enable polling game controllers.s
+    SDL_GameControllerEventState( SDL_ENABLE );
 
     window = SDL_CreateWindow( WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH,
                                WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE );
@@ -110,7 +116,7 @@ void init()
     mvpBuffer                 = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
     textureUnlitPipelineState = std::make_unique<TextureUnlitPipelineState>();
 
-    camera.setLookAt( { 0, 0, 10 }, { 0, 0, 0 }, { 0, 1, 0 } );
+    cameraController = std::make_unique<CameraController>( camera, glm::vec3 { 7.5, 2, 0 }, glm::vec3 { 0, 80, 0 } );
 
     // Resize to configure the depth texture.
     onResize( WINDOW_WIDTH, WINDOW_HEIGHT );
@@ -118,6 +124,9 @@ void init()
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
     cubeMesh      = Device::get().createCube( 2.0f );
     scene         = Device::get().loadScene( "assets/crytek-sponza/sponza_nobanner.obj" );
+
+    // Scale the root node
+    scene->getRootNode()->setLocalTransform( glm::scale( glm::mat4 { 1 }, glm::vec3 { 1.0f / 100.0f } ) );
 
     // Setup the texture sampler.
     WGPUSamplerDescriptor linearRepeatSamplerDesc {};
@@ -149,14 +158,14 @@ void renderNode( std::shared_ptr<GraphicsCommandBuffer> commandBuffer, std::shar
     for ( auto& mesh: node->getMeshes() )
     {
         auto material = mesh->getMaterial();
-        if (auto diffuseTexture = material->getTexture( TextureSlot::Diffuse ))
+        if ( auto diffuseTexture = material->getTexture( TextureSlot::Diffuse ) )
         {
             commandBuffer->bindTexture( 0, 1, *( diffuseTexture->getView() ) );
             commandBuffer->draw( *mesh );
         }
     }
 
-    for (auto& child : node->getChildren())
+    for ( auto& child: node->getChildren() )
     {
         renderNode( commandBuffer, node );
     }
@@ -207,9 +216,16 @@ void pollEvents()
             isRunning = false;
             break;
         case SDL_KEYDOWN:
-            if ( event.key.keysym.sym == SDLK_ESCAPE )
+            switch ( event.key.keysym.sym )
             {
+            case SDLK_ESCAPE:
                 isRunning = false;
+                break;
+            case SDLK_r:
+                cameraController->reset();
+                break;
+            default:
+                break;
             }
             break;
         case SDL_WINDOWEVENT:
@@ -232,6 +248,8 @@ void update( void* userdata = nullptr )
 
     timer.tick();
 
+    cameraController->update( timer.elapsedSeconds() );
+
     static double   totalTime = 0.0;
     static uint64_t frames    = 0;
 
@@ -247,9 +265,11 @@ void update( void* userdata = nullptr )
     // Update the model-view-projection matrix.
     int width, height;
     SDL_GetWindowSize( window, &width, &height );
-    float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
-    glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
-    glm::mat4 modelMatrix      = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
+    float     angle = static_cast<float>( timer.totalSeconds() * 90.0 );
+    glm::vec3 axis  = glm::vec3( 1.0f, 1.0f, 1.0f );
+    glm::mat4 t     = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 2, 0 } );
+    glm::mat4 r     = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
+    glm::mat4 modelMatrix      = t * r;
     glm::mat4 viewMatrix       = camera.getViewMatrix();
     glm::mat4 projectionMatrix = camera.getProjectionMatrix();
     glm::mat4 mvpMatrix        = projectionMatrix * viewMatrix * modelMatrix;

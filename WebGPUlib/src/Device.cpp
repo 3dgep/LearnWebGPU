@@ -715,7 +715,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
                 if ( idx.texcoord_index >= 0 )
                 {
                     vert.texCoord.x = attrib.texcoords[idx.texcoord_index * 2 + 0];
-                    vert.texCoord.y = attrib.texcoords[idx.texcoord_index * 2 + 1];
+                    vert.texCoord.y = 1.0f - attrib.texcoords[idx.texcoord_index * 2 + 1];
                 }
 
                 vertices.push_back( vert );
