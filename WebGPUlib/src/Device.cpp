@@ -171,7 +171,7 @@ Device::Device( SDL_Window* window )
     } adapterData;
 
     WGPURequestAdapterOptions requestAdapterOptions {};
-    requestAdapterOptions.backendType     = WGPUBackendType_Vulkan;
+    requestAdapterOptions.backendType     = WGPUBackendType_Undefined;
     requestAdapterOptions.powerPreference = WGPUPowerPreference_HighPerformance;
 
     wgpuInstanceRequestAdapter(
@@ -281,7 +281,11 @@ Device::Device( SDL_Window* window )
     surfaceConfiguration.alphaMode       = WGPUCompositeAlphaMode_Auto;
     surfaceConfiguration.width           = windowWidth;
     surfaceConfiguration.height          = windowHeight;
-    surfaceConfiguration.presentMode     = WGPUPresentMode_Fifo;  // This must be Fifo on Emscripten.
+#ifdef __EMSCRIPTEN__
+    surfaceConfiguration.presentMode = WGPUPresentMode_Fifo;  // This must be Fifo on Emscripten.
+#else
+    surfaceConfiguration.presentMode = WGPUPresentMode_Mailbox;
+#endif
 
     wgpuSurfaceConfigure( _surface, &surfaceConfiguration );
 
@@ -407,9 +411,9 @@ std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& _file
     auto filePath = _filePath.string();
     // Replace double backslashes in the file path.
     // This is required on POSIX systems (like Emscripten).
-    std::replace( filePath.begin(), filePath.end(), '\\', '/' ); 
+    std::replace( filePath.begin(), filePath.end(), '\\', '/' );
 
-    if ( !std::filesystem::exists(filePath) || !std::filesystem::is_regular_file( filePath ) )
+    if ( !std::filesystem::exists( filePath ) || !std::filesystem::is_regular_file( filePath ) )
     {
         std::cerr << "ERROR: File not found or is not a regular file: " << filePath << std::endl;
         return nullptr;

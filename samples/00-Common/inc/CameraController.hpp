@@ -2,7 +2,7 @@
 
 #include "Camera.hpp"
 #include "GamePad.hpp"
-#include "Timer.hpp"
+#include "Mouse.hpp"
 
 #include <glm/vec3.hpp>
 
@@ -25,10 +25,19 @@ private:
     Camera&      camera;
     GamePad      gamePad { 0 };
     GamePadState previousGamepadState {};
+    // Used for calculating deltas.
+    MouseState previousMouseState {};
 
-    glm::vec3    initialPosition;
-    glm::vec3    initialRotation;
+    glm::vec3 initialPosition;
+    glm::vec3 initialRotation;
 
     glm::vec3 position;
     glm::vec3 rotation;
+
+    glm::vec3 deltaPosition{0};
+    glm::vec3 deltaRotation{0};
+
+    // Tweakables
+    static constexpr inline float rotationSpeed = 5.0f;   // Degrees per second.
+    static constexpr inline float movementSpeed = 10.0f;  // Units per second.
 };

@@ -7,6 +7,8 @@ set( INC
 	inc/Camera.hpp
 	inc/CameraController.hpp
 	inc/GamePad.hpp
+	inc/Keyboard.hpp
+	inc/Mouse.hpp
 	inc/Timer.hpp
 )
 
@@ -14,6 +16,8 @@ set( SRC
 	src/Camera.cpp
 	src/CameraController.cpp
 	src/GamePad.cpp
+	src/Keyboard.cpp
+	src/Mouse.cpp
 	src/Timer.cpp
 )
 
