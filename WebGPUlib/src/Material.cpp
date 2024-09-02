@@ -109,6 +109,36 @@ std::shared_ptr<Texture> Material::getTexture( TextureSlot slot ) const
 void Material::setTexture( TextureSlot slot, std::shared_ptr<Texture> texture )
 {
     textures[slot] = std::move( texture );
+
+    switch ( slot )
+    {
+    case TextureSlot::Ambient:
+        properties->hasAmbientTexture = texture != nullptr;
+        break;
+    case TextureSlot::Diffuse:
+        properties->hasDiffuseTexture = texture != nullptr;
+        break;
+    case TextureSlot::Emissive:
+        properties->hasEmissiveTexture = texture != nullptr;
+        break;
+    case TextureSlot::Specular:
+        properties->hasSpecularTexture = texture != nullptr;
+        break;
+    case TextureSlot::SpecularPower:
+        properties->hasSpecularPowerTexture = texture != nullptr;
+        break;
+    case TextureSlot::Normal:
+        properties->hasNormalTexture = texture != nullptr;
+        break;
+    case TextureSlot::Bump:
+        properties->hasBumpTexture = texture != nullptr;
+        break;
+    case TextureSlot::Opacity:
+        properties->hasOpacityTexture = texture != nullptr;
+        break;
+    case TextureSlot::NumTextureSlots:
+        break;
+    }
 }
 
 bool Material::isTransparent() const noexcept

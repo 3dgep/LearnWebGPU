@@ -34,6 +34,14 @@ struct alignas( 16 ) MaterialProperties
     , specularPower( specularPower )
     , indexOfRefraction( indexOfRefraction )
     , bumpIntensity( bumpIntensity )
+    , hasAmbientTexture( false )
+    , hasDiffuseTexture( false )
+    , hasEmissiveTexture( false )
+    , hasSpecularTexture( false )
+    , hasSpecularPowerTexture( false )
+    , hasNormalTexture( false )
+    , hasBumpTexture( false )
+    , hasOpacityTexture( false )
     {}
 
     MaterialProperties(const MaterialProperties&) = default;
@@ -44,14 +52,31 @@ struct alignas( 16 ) MaterialProperties
     MaterialProperties& operator=(MaterialProperties&&) noexcept = default;
 
     glm::vec4 diffuse;
+    //------------------------------------ ( 16 bytes )
     glm::vec4 specular;
+    //------------------------------------ ( 16 bytes )
     glm::vec4 emissive;
+    //------------------------------------ ( 16 bytes )
     glm::vec4 ambient;
+    //------------------------------------ ( 16 bytes )
     glm::vec4 reflectance;
+    //------------------------------------ ( 16 bytes )
     float     opacity;            // If opacity is < 1, the material is transparent.
     float     specularPower;
     float     indexOfRefraction;  // For transparent materials, IOR > 0.
     float     bumpIntensity;      // Used for scaling bump maps.
+    //------------------------------------ ( 16 bytes )
+    uint32_t  hasAmbientTexture;
+    uint32_t  hasDiffuseTexture;
+    uint32_t  hasEmissiveTexture;
+    uint32_t  hasSpecularTexture;
+    //------------------------------------ ( 16 bytes )
+    uint32_t  hasSpecularPowerTexture;
+    uint32_t  hasNormalTexture;
+    uint32_t  hasBumpTexture;
+    uint32_t  hasOpacityTexture;
+    //------------------------------------ ( 16 bytes )
+    // Total:                              ( 16 * 8 = 128 bytes )
 };
 // clang-format on
 

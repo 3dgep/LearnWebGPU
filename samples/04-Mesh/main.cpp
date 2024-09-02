@@ -263,8 +263,6 @@ void update( void* userdata = nullptr )
     }
 
     // Update the model-view-projection matrix.
-    int width, height;
-    SDL_GetWindowSize( window, &width, &height );
     float     angle = static_cast<float>( timer.totalSeconds() * 90.0 );
     glm::vec3 axis  = glm::vec3( 1.0f, 1.0f, 1.0f );
     glm::mat4 t     = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 2, 0 } );
