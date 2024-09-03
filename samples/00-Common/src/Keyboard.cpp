@@ -1,5 +1,7 @@
 #include <Keyboard.hpp>
 
+#include <cstring>
+
 namespace Keyboard
 {
 
@@ -10,7 +12,7 @@ KeyboardState getState()
     int          numKeys;
     const Uint8* keys = SDL_GetKeyboardState( &numKeys );
 
-    memcpy_s( state.keys.data(), sizeof( Uint8 ) * state.keys.size(), keys, sizeof( Uint8 ) * numKeys );
+    std::memcpy( state.keys.data(), keys, sizeof( Uint8 ) * numKeys );
 
     return state;
 }

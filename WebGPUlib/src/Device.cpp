@@ -25,6 +25,12 @@
 
 #include <tiny_obj_loader.h>
 
+#include <assimp/Exporter.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/mesh.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+
 #include <glm/vec3.hpp>
 #include <sdl2webgpu.h>
 #include <stb_image.h>
@@ -34,6 +40,7 @@
 #include <iostream>
 
 using namespace WebGPUlib;
+namespace fs = std::filesystem;
 
 /**
  * bitScanForward
@@ -605,6 +612,7 @@ void Device::generateMips( Texture& texture )
     queue->submit( *commandBuffer );
 }
 
+#if 0
 glm::vec4 parseColor( const tinyobj::real_t color[3] )
 {
     return { color[0], color[1], color[2], 1.0f };
@@ -746,6 +754,42 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
 
     return std::make_shared<Scene>( rootNode );
 }
+#else
+std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath )
+{
+    fs::path parentPath = filePath.parent_path();
+
+    fs::path exportPath = filePath;
+    exportPath.replace_extension( "assbin" );
+
+    Assimp::Importer importer;
+    const aiScene*   scene = nullptr;
+
+    if ( exists( exportPath ) && is_regular_file( exportPath ) )
+    {
+        scene = importer.ReadFile( exportPath.string(), aiProcess_GenBoundingBoxes );
+    }
+    else
+    {
+        // File has not been preprocessed yet. Import and processes the file.
+        importer.SetPropertyFloat( AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 80.0f );
+        importer.SetPropertyInteger( AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE );
+
+        unsigned int preprocessFlags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_OptimizeGraph |
+                                       aiProcess_ConvertToLeftHanded | aiProcess_GenBoundingBoxes;
+        scene = importer.ReadFile( filePath.string(), preprocessFlags );
+
+        if ( scene )
+        {
+            // Export the preprocessed scene file for faster loading next time.
+            Assimp::Exporter exporter;
+            exporter.Export( scene, "assbin", exportPath.string(), 0 );
+        }
+    }
+
+    return std::make_shared<Scene>(); // TODO: Implement
+}
+#endif
 
 std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t vertexCount,
                                                           std::size_t vertexStride ) const
