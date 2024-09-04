@@ -66,21 +66,21 @@ TextureUnlitPipelineState::TextureUnlitPipelineState()
     WGPUVertexAttribute vertexAttributes[3] {};
     // glm::vec3 position;
     vertexAttributes[0].format         = WGPUVertexFormat_Float32x3;
-    vertexAttributes[0].offset         = offsetof( VertexPositionNormalTexture, position );
+    vertexAttributes[0].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, position );
     vertexAttributes[0].shaderLocation = 0;
 
     // glm::vec3 normal;
     vertexAttributes[1].format         = WGPUVertexFormat_Float32x3;
-    vertexAttributes[1].offset         = offsetof( VertexPositionNormalTexture, normal );
+    vertexAttributes[1].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, normal );
     vertexAttributes[1].shaderLocation = 1;
 
     // glm::vec3 texCoord;
     vertexAttributes[2].format         = WGPUVertexFormat_Float32x3;
-    vertexAttributes[2].offset         = offsetof( VertexPositionNormalTexture, texCoord );
+    vertexAttributes[2].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, texCoord );
     vertexAttributes[2].shaderLocation = 2;
 
     WGPUVertexBufferLayout vertexBufferLayout {};
-    vertexBufferLayout.arrayStride    = sizeof( VertexPositionNormalTexture );
+    vertexBufferLayout.arrayStride    = sizeof( VertexPositionNormalTangentBitangentTexture );
     vertexBufferLayout.stepMode       = WGPUVertexStepMode_Vertex;
     vertexBufferLayout.attributeCount = std::size( vertexAttributes );
     vertexBufferLayout.attributes     = vertexAttributes;

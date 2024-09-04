@@ -336,7 +336,8 @@ std::shared_ptr<Surface> Device::getSurface() const
     return surface;
 }
 
-static void reverseWinding( std::vector<VertexPositionNormalTexture>& vertices, std::vector<uint16_t>& indices )
+static void reverseWinding( std::vector<VertexPositionNormalTangentBitangentTexture>& vertices,
+                            std::vector<uint16_t>&                                    indices )
 {
     assert( ( indices.size() % 3 ) == 0 );
     for ( auto it = indices.begin(); it != indices.end(); it += 3 )
@@ -374,8 +375,8 @@ std::shared_ptr<Mesh> Device::createCube( float size, bool _reverseWinding ) con
         5, 0, 3, 6   // -Z
     };
 
-    std::vector<VertexPositionNormalTexture> vertices;
-    std::vector<uint16_t>                    indices;
+    std::vector<VertexPositionNormalTangentBitangentTexture> vertices;
+    std::vector<uint16_t>                                    indices;
 
     for ( uint16_t f = 0; f < 6; ++f )  // For each face of the cube.
     {
@@ -759,7 +760,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
 std::shared_ptr<SceneNode> importSceneNode( const aiNode* aiNode, std::shared_ptr<SceneNode> parent,
                                             const std::vector<std::shared_ptr<Mesh>>& meshes )
 {
-    if (!aiNode)
+    if ( !aiNode )
     {
         return nullptr;
     }
@@ -780,7 +781,7 @@ std::shared_ptr<SceneNode> importSceneNode( const aiNode* aiNode, std::shared_pt
     }
 
     // Import children.
-    for (unsigned int i = 0; i < aiNode->mNumChildren; ++i)
+    for ( unsigned int i = 0; i < aiNode->mNumChildren; ++i )
     {
         auto child = importSceneNode( aiNode->mChildren[i], node, meshes );
         node->addChild( child );
@@ -931,7 +932,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
             material->setTexture( TextureSlot::Bump, texture );
         }
 
-        materials.emplace_back( std::move(material) );
+        materials.emplace_back( std::move( material ) );
     }
 
     // Import meshes.
@@ -943,7 +944,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
         const aiMesh* aiMesh = scene->mMeshes[m];
 
         std::shared_ptr<Mesh>                                    mesh = std::make_shared<Mesh>();
-        std::vector<VertexPositionNormalTexture> vertexData { aiMesh->mNumVertices };
+        std::vector<VertexPositionNormalTangentBitangentTexture> vertexData { aiMesh->mNumVertices };
 
         assert( aiMesh->mMaterialIndex < materials.size() );
         mesh->setMaterial( materials[aiMesh->mMaterialIndex] );
@@ -964,16 +965,16 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
                 vertexData[v].normal = { n.x, n.y, n.z };
             }
         }
-        //if ( aiMesh->HasTangentsAndBitangents() )
-        //{
-        //    for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
-        //    {
-        //        aiVector3D t            = aiMesh->mTangents[v];
-        //        aiVector3D b            = aiMesh->mBitangents[v];
-        //        vertexData[v].tangent   = { t.x, t.y, t.z };
-        //        vertexData[v].bitangent = { b.x, b.y, b.z };
-        //    }
-        //}
+        if ( aiMesh->HasTangentsAndBitangents() )
+        {
+            for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
+            {
+                aiVector3D t            = aiMesh->mTangents[v];
+                aiVector3D b            = aiMesh->mBitangents[v];
+                vertexData[v].tangent   = { t.x, t.y, t.z };
+                vertexData[v].bitangent = { b.x, b.y, b.z };
+            }
+        }
         if ( aiMesh->HasTextureCoords( 0 ) )
         {
             for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
@@ -1012,7 +1013,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
             }
         }
 
-        meshes.emplace_back( std::move(mesh) );
+        meshes.emplace_back( std::move( mesh ) );
     }
 
     auto rootNode = importSceneNode( scene->mRootNode, nullptr, meshes );

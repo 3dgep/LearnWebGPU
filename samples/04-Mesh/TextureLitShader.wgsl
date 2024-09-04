@@ -3,18 +3,36 @@ struct VertexIn
 {
     @location(0) position : vec3f,
     @location(1) normal   : vec3f,
-    @location(2) uv       : vec3f,
+    @location(2) tangent  : vec3f,
+    @location(3) bitangent: vec3f,
+    @location(4) uv       : vec3f,
 };
 
 struct VertexOut
 {
-    @builtin(position) position: vec4f,
-    @location(0) uv: vec2f,
+    @locatoin(0) positionVS : vec3f,
+    @location(1) normalVS   : vec3f,
+    @location(2) tangentVS  : vec3f,
+    @location(3) bitangentVS: vec3f,
+    @location(4) uv         : vec2f,
+    @builtin(position) position : vec4f,
 };
 
 struct FragmentIn
 {
-    @location(0) uv: vec2f
+    @locatoin(0) positionVS : vec3f,
+    @location(1) normalVS   : vec3f,
+    @location(2) tangentVS  : vec3f,
+    @location(3) bitangentVS: vec3f,
+    @location(4) uv         : vec2f,
+};
+
+struct Matrices
+{
+    model               : mat4x4f,
+    modelView           : mat4x4f,
+    modelViewIT         : mat4x4f, // Inverse-transpose
+    modelViewProjection : mat4x4f,
 };
 
 struct Material
@@ -93,9 +111,8 @@ struct LightResult
     ambient : vec4f,
 };
 
-// Model View Projection matrix.
-@group(0) @binding(0) var<uniform> mvp : mat4x4f;
-// Material properties.
+// Constants
+@group(0) @binding(0) var<uniform> matrices : Matrices;
 @group(0) @binding(1) var<uniform> material : Material;
 
 // Textures
@@ -119,8 +136,14 @@ struct LightResult
 fn vs_main(in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
-    out.position =  mvp * vec4f(in.position, 1.0);
+    
+    out.positionVS =  (matrices.modelView * vec4f(in.position, 1.0)).xyz;
+    out.normalVS = mat3x3f(matrices.modelViewIT) * in.normal;
+    out.tangentVS = mat3x3f(matrices.modelViewIT) * in.tangent;
+    out.bitangentVS = mat3x3f(matrices.modelViewIT) * in.bitangent;
     out.uv = in.uv.xy;
+    out.position = matrices.modelViewProjection * vec4f(in.position, 1.0);
+
     return out;
 }
 
@@ -241,8 +264,100 @@ fn DoNormalMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f ) -> vec3f
     return normalize(N);
 }
 
+fn DoBumpMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f, bumpScale : f32 )
+{
+    let height_00 = textureSample( tex, linearRepeatSampler, uv ).r * bumpScale;
+    let height_10 = textureSample( tex, linearRepeatSampler, uv, vec2i(1, 0) ).r * bumpScale;
+    let height_10 = textureSample( tex, linearRepeatSampler, uv, vec2i(0, 1) ).r * bumpScale;
+
+    let p_00 = vec3f( 0, 0, height_00 );
+    let p_10 = vec3f( 0, 0, height_10 );
+    let p_01 = vec3f( 0, 0, height_01 );
+
+    let tangent = normalize( p_10 - p_00 );
+    let bitangent = normalize( p_01 - p_00 );
+    let normal = cross( tangent, bitangent );
+
+    normal = normal * TBN;
+
+    return normal;
+}
+
 @fragment
 fn fs_main(in: FragmentIn) -> @location(0) vec4f {
-    return textureSample(albedoTexture, linearRepeatSampler, in.uv);
+    
+    // Use the alpha component of the diffuse color for opacity.
+    var opacity = material.diffuse.a;
+    if (material.hasOpacityTexture)
+    {
+        opacity = textureSample(opacityTexture, linearRepeatSampler, in.uv ).r;
+    }
+
+    if (alpha < 0.2)
+    {
+        discard; // Discard the pixel if it is below a certain threshold.
+    }
+
+    var ambient = material.ambient;
+    var emissive = material.emissive;
+    var diffuse = material.diffuse;
+    var specularPower = material.specularPower;
+
+    if (material.hasAmbientTexture)
+    {
+        ambient = textureSample(ambientTexture, linearRepeatSampler, in.uv);
+    }
+    if (material.hasEmissiveTexture)
+    {
+        emissive = textureSample(emissiveTexture, linearRepeatSampler, in.uv);
+    }
+    if (material.hasDiffuseTexture)
+    {
+        diffuse = textureSample(diffuseTexture, linearRepeatSampler, in.uv);
+    }
+    if (material.hasSpecularPowerTexture)
+    {
+        specularPower *= textureSample(specularPowerTexture, linearRepeatSampler, in.uv).x;
+    }
+
+    var N = normalize(in.normalVS);
+    if (material.hasNormalTexture)
+    {
+        var tangent = normalize(in.tangentVS);
+        var bitangent = normalize(in.bitangentVS);
+        var normal = normalize(in.normalVS);
+
+        let TBN = float3x3f(tangent, bitangent, normal);
+
+        N = DoNormalMapping(TBN, normalTexture, in.uv);
+    }
+    else if (material.hasBumpTexture)
+    {
+        var tangent = normalize(in.tangentVS);
+        var bitangent = normalize(in.bitangentVS);
+        var normal = normalize(in.normalVS);
+
+        let TBN = float3x3f(tangent, bitangent, normal);
+
+        N = DoBumpMapping(TBN, bumpTexture, in.uv, material.bumpIntensity);
+    }
+
+    let lighting = DoLighting( in.positionVS, N, specularPower );
+
+    diffuse *= lighting.diffuse;
+    ambient *= lighting.ambient;
+    var specular : vec3f;
+
+    if (specularPower > 1.0)
+    {
+        specular = material.specular;
+        if (material.hasSpecularTexture)
+        {
+            specular = textureSample(specularTexture, linearRepeatSampler, in.uv);
+        }
+        specular *= lighting.specular;
+    }
+
+    return vec4f(emissive + ambient + diffuse + specular, alpha * material.opacity);
 }
 )"
