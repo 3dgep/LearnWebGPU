@@ -22,7 +22,7 @@ enum class AttachmentPoint
     NumAttachmentPoints,
 };
 
-using TextureViewArray = std::array<std::shared_ptr<TextureView>, static_cast<std::size_t>(AttachmentPoint::NumAttachmentPoints)>;
+using TextureViewArray = std::array<std::pair<std::shared_ptr<TextureView>, std::shared_ptr<TextureView>>, static_cast<std::size_t>(AttachmentPoint::NumAttachmentPoints)>;
 
 class RenderTarget
 {
@@ -34,9 +34,10 @@ public:
     RenderTarget& operator=( RenderTarget&& )      = delete;
     ~RenderTarget()                                = default;
 
-    void attachTexture( AttachmentPoint attachmentPoint, std::shared_ptr<TextureView> texture );
+    void attachTexture( AttachmentPoint attachmentPoint, std::shared_ptr<TextureView> texture, std::shared_ptr<TextureView> resolveTarget = nullptr );
 
     std::shared_ptr<TextureView> getTextureView( AttachmentPoint attachmentPoint ) const;
+    std::shared_ptr<TextureView> getResolveTarget( AttachmentPoint attachmentPoint ) const;
 
     const TextureViewArray& getTextureViews() const;
 private:

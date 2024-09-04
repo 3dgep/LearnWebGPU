@@ -755,6 +755,40 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
     return std::make_shared<Scene>( rootNode );
 }
 #else
+
+std::shared_ptr<SceneNode> importSceneNode( const aiNode* aiNode, std::shared_ptr<SceneNode> parent,
+                                            const std::vector<std::shared_ptr<Mesh>>& meshes )
+{
+    if (!aiNode)
+    {
+        return nullptr;
+    }
+
+    glm::mat4 transform {
+        aiNode->mTransformation.a1, aiNode->mTransformation.a2, aiNode->mTransformation.a3, aiNode->mTransformation.a4,
+        aiNode->mTransformation.b1, aiNode->mTransformation.b2, aiNode->mTransformation.b3, aiNode->mTransformation.b4,
+        aiNode->mTransformation.c1, aiNode->mTransformation.c2, aiNode->mTransformation.c3, aiNode->mTransformation.c4,
+        aiNode->mTransformation.d1, aiNode->mTransformation.d2, aiNode->mTransformation.d3, aiNode->mTransformation.d4,
+    };
+
+    auto node = std::make_shared<SceneNode>( transform );
+    node->setParent( parent );
+
+    for ( unsigned int i = 0; i < aiNode->mNumMeshes; ++i )
+    {
+        node->addMesh( meshes[aiNode->mMeshes[i]] );
+    }
+
+    // Import children.
+    for (unsigned int i = 0; i < aiNode->mNumChildren; ++i)
+    {
+        auto child = importSceneNode( aiNode->mChildren[i], node, meshes );
+        node->addChild( child );
+    }
+
+    return node;
+}
+
 std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath )
 {
     fs::path parentPath = filePath.parent_path();
@@ -787,7 +821,203 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
         }
     }
 
-    return std::make_shared<Scene>(); // TODO: Implement
+    if ( !scene )
+    {
+        return nullptr;
+    }
+
+    // Import materials.
+    std::vector<std::shared_ptr<Material>> materials;
+    materials.reserve( scene->mNumMaterials );
+
+    for ( unsigned int i = 0; i < scene->mNumMaterials; ++i )
+    {
+        const aiMaterial*         aiMaterial = scene->mMaterials[i];
+        std::shared_ptr<Material> material   = std::make_shared<Material>();
+
+        aiString  texturePath;
+        aiColor4D ambientColor;
+        aiColor4D emissiveColor;
+        aiColor4D diffuseColor;
+        aiColor4D specularColor;
+        aiColor4D reflectiveColor;
+        float     shininess;
+        float     opacity;
+        float     indexOfRefraction;
+        float     bumpIntensity;
+
+        if ( aiMaterial->Get( AI_MATKEY_COLOR_AMBIENT, ambientColor ) == aiReturn_SUCCESS )
+        {
+            material->setAmbient( { ambientColor.r, ambientColor.g, ambientColor.b, ambientColor.a } );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_COLOR_EMISSIVE, emissiveColor ) == aiReturn_SUCCESS )
+        {
+            material->setEmissive( { emissiveColor.r, emissiveColor.g, emissiveColor.b, emissiveColor.a } );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_COLOR_DIFFUSE, diffuseColor ) == aiReturn_SUCCESS )
+        {
+            material->setDiffuse( { diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a } );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_COLOR_SPECULAR, specularColor ) == aiReturn_SUCCESS )
+        {
+            material->setSpecular( { specularColor.r, specularColor.g, specularColor.b, specularColor.a } );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_COLOR_REFLECTIVE, reflectiveColor ) == aiReturn_SUCCESS )
+        {
+            material->setReflectance( { reflectiveColor.r, reflectiveColor.g, reflectiveColor.b, reflectiveColor.a } );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_SHININESS, shininess ) == aiReturn_SUCCESS )
+        {
+            material->setSpecularPower( shininess );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_OPACITY, opacity ) == aiReturn_SUCCESS )
+        {
+            material->setOpacity( opacity );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_REFRACTI, indexOfRefraction ) == aiReturn_SUCCESS )
+        {
+            material->setIndexOfRefraction( indexOfRefraction );
+        }
+        if ( aiMaterial->Get( AI_MATKEY_BUMPSCALING, bumpIntensity ) == aiReturn_SUCCESS )
+        {
+            material->setBumpIntensity( bumpIntensity );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_AMBIENT ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_AMBIENT, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Ambient, texture );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_EMISSIVE ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_EMISSIVE, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Emissive, texture );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_DIFFUSE ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_DIFFUSE, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Diffuse, texture );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_SPECULAR ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_SPECULAR, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Specular, texture );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_SHININESS ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_SHININESS, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::SpecularPower, texture );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_OPACITY ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_OPACITY, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Opacity, texture );
+        }
+        if ( aiMaterial->GetTextureCount( aiTextureType_NORMALS ) > 0 &&
+             aiMaterial->GetTexture( aiTextureType_NORMALS, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Normal, texture );
+        }
+        else if ( aiMaterial->GetTextureCount( aiTextureType_HEIGHT ) > 0 &&
+                  aiMaterial->GetTexture( aiTextureType_HEIGHT, 0, &texturePath ) == aiReturn_SUCCESS )
+        {
+            auto texture = loadTexture( parentPath / texturePath.C_Str() );
+            material->setTexture( TextureSlot::Bump, texture );
+        }
+
+        materials.emplace_back( std::move(material) );
+    }
+
+    // Import meshes.
+    std::vector<std::shared_ptr<Mesh>> meshes;
+    meshes.reserve( scene->mNumMeshes );
+
+    for ( unsigned int m = 0; m < scene->mNumMeshes; ++m )
+    {
+        const aiMesh* aiMesh = scene->mMeshes[m];
+
+        std::shared_ptr<Mesh>                                    mesh = std::make_shared<Mesh>();
+        std::vector<VertexPositionNormalTexture> vertexData { aiMesh->mNumVertices };
+
+        assert( aiMesh->mMaterialIndex < materials.size() );
+        mesh->setMaterial( materials[aiMesh->mMaterialIndex] );
+
+        if ( aiMesh->HasPositions() )
+        {
+            for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
+            {
+                aiVector3D p           = aiMesh->mVertices[v];
+                vertexData[v].position = { p.x, p.y, p.z };
+            }
+        }
+        if ( aiMesh->HasNormals() )
+        {
+            for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
+            {
+                aiVector3D n         = aiMesh->mNormals[v];
+                vertexData[v].normal = { n.x, n.y, n.z };
+            }
+        }
+        //if ( aiMesh->HasTangentsAndBitangents() )
+        //{
+        //    for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
+        //    {
+        //        aiVector3D t            = aiMesh->mTangents[v];
+        //        aiVector3D b            = aiMesh->mBitangents[v];
+        //        vertexData[v].tangent   = { t.x, t.y, t.z };
+        //        vertexData[v].bitangent = { b.x, b.y, b.z };
+        //    }
+        //}
+        if ( aiMesh->HasTextureCoords( 0 ) )
+        {
+            for ( unsigned int v = 0; v < aiMesh->mNumVertices; ++v )
+            {
+                aiVector3D uv          = aiMesh->mTextureCoords[0][v];
+                vertexData[v].texCoord = { uv.x, uv.y, uv.z };
+            }
+        }
+
+        auto vertexBuffer = createVertexBuffer( vertexData );
+        mesh->setVertexBuffer( 0, vertexBuffer );
+
+        // Extract index buffer.
+        if ( aiMesh->HasFaces() )
+        {
+            std::vector<unsigned int> indices;
+            indices.reserve( aiMesh->mNumFaces * 3 );
+
+            for ( unsigned int f = 0; f < aiMesh->mNumFaces; ++f )
+            {
+                const aiFace& face = aiMesh->mFaces[f];
+
+                // We only care about triangular faces.
+                if ( face.mNumIndices == 3 )
+                {
+                    indices.push_back( face.mIndices[0] );
+                    indices.push_back( face.mIndices[1] );
+                    indices.push_back( face.mIndices[2] );
+                }
+            }
+
+            if ( !indices.empty() )
+            {
+                auto indexBuffer = createIndexBuffer( indices );
+                mesh->setIndexBuffer( indexBuffer );
+            }
+        }
+
+        meshes.emplace_back( std::move(mesh) );
+    }
+
+    auto rootNode = importSceneNode( scene->mRootNode, nullptr, meshes );
+
+    return std::make_shared<Scene>( rootNode );
 }
 #endif
 

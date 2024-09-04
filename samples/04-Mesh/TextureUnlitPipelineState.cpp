@@ -137,7 +137,7 @@ TextureUnlitPipelineState::TextureUnlitPipelineState()
 
     // Multisampling
     WGPUMultisampleState multisampleState {};
-    multisampleState.count                  = 1;
+    multisampleState.count                  = 4u;
     multisampleState.mask                   = ~0u;
     multisampleState.alphaToCoverageEnabled = false;
 

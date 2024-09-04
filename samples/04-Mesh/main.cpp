@@ -48,6 +48,8 @@ bool isRunning = true;
 
 std::shared_ptr<Mesh>                      cubeMesh;
 std::shared_ptr<UniformBuffer>             mvpBuffer;
+std::shared_ptr<Texture>                   colorTexture;
+std::shared_ptr<TextureView>               colorTextureView;
 std::shared_ptr<Texture>                   depthTexture;
 std::shared_ptr<TextureView>               depthTextureView;
 std::shared_ptr<Texture>                   albedoTexture;
@@ -58,7 +60,28 @@ std::unique_ptr<TextureUnlitPipelineState> textureUnlitPipelineState;
 void onResize( uint32_t width, uint32_t height )
 {
     // Resize the window surface.
-    Device::get().getSurface()->resize( width, height );
+    auto& device  = Device::get();
+    auto  surface = device.getSurface();
+
+    surface->resize( width, height );
+
+    // Create the MSAA color texture.
+    WGPUTextureFormat colorTextureFormat = surface->getSurfaceFormat();
+
+    WGPUTextureDescriptor colorTextureDescriptor {};
+    colorTextureDescriptor.label         = "MSAA Color Texture";
+    colorTextureDescriptor.usage         = WGPUTextureUsage_RenderAttachment;
+    colorTextureDescriptor.dimension     = WGPUTextureDimension_2D;
+    colorTextureDescriptor.size          = { width, height, 1 };
+    colorTextureDescriptor.format        = colorTextureFormat;
+    colorTextureDescriptor.mipLevelCount = 1;
+    colorTextureDescriptor.sampleCount   = 4;  // WebGPU currently only supports a count of 4. See:
+                                             // https://webgpufundamentals.org/webgpu/lessons/webgpu-multisampling.html
+    colorTextureDescriptor.viewFormatCount = 1;
+    colorTextureDescriptor.viewFormats     = &colorTextureFormat;
+
+    colorTexture     = device.createTexture( colorTextureDescriptor );
+    colorTextureView = colorTexture->getView();
 
     // Create the depth texture.
     WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth32Float;
@@ -70,11 +93,11 @@ void onResize( uint32_t width, uint32_t height )
     depthTextureDescriptor.size                  = { width, height, 1 };
     depthTextureDescriptor.format                = depthTextureFormat;
     depthTextureDescriptor.mipLevelCount         = 1;
-    depthTextureDescriptor.sampleCount           = 1;
+    depthTextureDescriptor.sampleCount           = 4;
     depthTextureDescriptor.viewFormatCount       = 1;
     depthTextureDescriptor.viewFormats           = &depthTextureFormat;
 
-    depthTexture = Device::get().createTexture( depthTextureDescriptor );
+    depthTexture = device.createTexture( depthTextureDescriptor );
 
     // Create the depth texture view.
     WGPUTextureViewDescriptor depthTextureViewDescriptor {};
@@ -176,7 +199,7 @@ void render()
     auto surface = Device::get().getSurface();
 
     RenderTarget renderTarget;
-    renderTarget.attachTexture( AttachmentPoint::Color0, surface->getNextTextureView() );
+    renderTarget.attachTexture( AttachmentPoint::Color0, colorTextureView, surface->getNextTextureView() );
     renderTarget.attachTexture( AttachmentPoint::DepthStencil, depthTextureView );
 
     auto queue = Device::get().getQueue();
@@ -263,10 +286,10 @@ void update( void* userdata = nullptr )
     }
 
     // Update the model-view-projection matrix.
-    float     angle = static_cast<float>( timer.totalSeconds() * 90.0 );
-    glm::vec3 axis  = glm::vec3( 1.0f, 1.0f, 1.0f );
-    glm::mat4 t     = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 2, 0 } );
-    glm::mat4 r     = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
+    float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
+    glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
+    glm::mat4 t                = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 2, 0 } );
+    glm::mat4 r                = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
     glm::mat4 modelMatrix      = t * r;
     glm::mat4 viewMatrix       = camera.getViewMatrix();
     glm::mat4 projectionMatrix = camera.getProjectionMatrix();

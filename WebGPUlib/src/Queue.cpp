@@ -243,10 +243,12 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
     auto& views = renderTarget.getTextureViews();
     for ( int i = 0; i < 8; ++i )
     {
-        if ( auto& view = views[i] )
+        auto& view = views[i];
+        if ( view.first )
         {
             WGPURenderPassColorAttachment colorAttachment {};
-            colorAttachment.view       = view->getWGPUTextureView();
+            colorAttachment.view          = view.first->getWGPUTextureView();
+            colorAttachment.resolveTarget = view.second ? view.second->getWGPUTextureView() : nullptr;
             colorAttachment.loadOp     = ( clearFlags & ClearFlags::Color ) != 0 ? WGPULoadOp_Clear : WGPULoadOp_Load;
             colorAttachment.storeOp    = WGPUStoreOp_Store;
             colorAttachment.clearValue = clearColor;
@@ -257,7 +259,7 @@ std::shared_ptr<GraphicsCommandBuffer> Queue::createGraphicsCommandBuffer( const
         }
     }
 
-    auto& depthStencilView = views[static_cast<std::size_t>( AttachmentPoint::DepthStencil )];
+    auto& depthStencilView = views[static_cast<std::size_t>( AttachmentPoint::DepthStencil )].first;
     WGPURenderPassDepthStencilAttachment depthStencilAttachment {};
     if ( depthStencilView )
     {
@@ -306,7 +308,8 @@ std::shared_ptr<ComputeCommandBuffer> Queue::createComputeCommandBuffer()
     computePassDesc.timestampWrites    = nullptr;
     WGPUComputePassEncoder passEncoder = wgpuCommandEncoderBeginComputePass( commandEncoder, &computePassDesc );
 
-    return std::make_shared<MakeComputeCommandBuffer>( std::move( commandEncoder ), std::move( passEncoder ) );  // NOLINT(performance-move-const-arg)
+    return std::make_shared<MakeComputeCommandBuffer>(
+        std::move( commandEncoder ), std::move( passEncoder ) );  // NOLINT(performance-move-const-arg)
 }
 
 void Queue::submit( CommandBuffer& commandBuffer )
