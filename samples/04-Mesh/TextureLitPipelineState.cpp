@@ -12,7 +12,7 @@ using namespace WebGPUlib;
 TextureLitPipelineState::TextureLitPipelineState()
 {
     const char* shaderCode = {
-#include "TextureUnlitShader.wgsl"
+#include "TextureLitShader.wgsl"
     };
 
     WGPUDevice        device        = Device::get().getWGPUDevice();

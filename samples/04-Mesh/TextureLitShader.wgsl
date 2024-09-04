@@ -10,7 +10,7 @@ struct VertexIn
 
 struct VertexOut
 {
-    @locatoin(0) positionVS : vec3f,
+    @location(0) positionVS : vec3f,
     @location(1) normalVS   : vec3f,
     @location(2) tangentVS  : vec3f,
     @location(3) bitangentVS: vec3f,
@@ -20,7 +20,7 @@ struct VertexOut
 
 struct FragmentIn
 {
-    @locatoin(0) positionVS : vec3f,
+    @location(0) positionVS : vec3f,
     @location(1) normalVS   : vec3f,
     @location(2) tangentVS  : vec3f,
     @location(3) bitangentVS: vec3f,
@@ -52,15 +52,15 @@ struct Material
     indexOfRefraction : f32,
     bumpIntensity : f32,
     //------------------------------------ ( 16 bytes )
-    hasAmbientTexture : bool,
-    hasDiffuseTexture : bool,
-    hasEmissiveTexture : bool,
-    hasSpecularTexture : bool,
+    hasAmbientTexture : u32,
+    hasDiffuseTexture : u32,
+    hasEmissiveTexture : u32,
+    hasSpecularTexture : u32,
     //------------------------------------ ( 16 bytes )
-    hasSpecularPowerTexture : bool,
-    hasNormalTexture : bool,
-    hasBumpTexture : bool,
-    hasOpacityTexture : bool,
+    hasSpecularPowerTexture : u32,
+    hasNormalTexture : u32,
+    hasBumpTexture : u32,
+    hasOpacityTexture : u32,
     //------------------------------------ ( 16 bytes )
     // Total:                              ( 16 * 8 = 128 bytes )
 };
@@ -73,10 +73,10 @@ struct PointLight
     //----------------------------------- (16 byte boundary)
     color : vec4f,
     //----------------------------------- (16 byte boundary)
-    ambient : float,
-    constantAttenuation : float,
-    linearAttenuation : float,
-    quadraticAttenuation : float,
+    ambient : f32,
+    constantAttenuation : f32,
+    linearAttenuation : f32,
+    quadraticAttenuation : f32,
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 4 = 64 bytes
 };
@@ -93,12 +93,12 @@ struct SpotLight
     //----------------------------------- (16 byte boundary)
     color : vec4f,
     //----------------------------------- (16 byte boundary)
-    ambient : float,
-    spotAngle : float,
-    constantAttenuation : float,
-    linearAttenuation : float,
+    ambient : f32,
+    spotAngle : f32,
+    constantAttenuation : f32,
+    linearAttenuation : f32,
     //----------------------------------- (16 byte boundary)
-    quadraticAttenuation : float,
+    quadraticAttenuation : f32,
     padding : vec3f,
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 7 = 112 bytes
@@ -121,7 +121,7 @@ struct LightResult
 @group(0) @binding(4) var diffuseTexture : texture_2d<f32>;
 @group(0) @binding(5) var specularTexture : texture_2d<f32>;
 @group(0) @binding(6) var specularPowerTexture : texture_2d<f32>;
-@group(0) @bidning(7) var normalTexture : texture_2d<f32>;
+@group(0) @binding(7) var normalTexture : texture_2d<f32>;
 @group(0) @binding(8) var bumpTexture : texture_2d<f32>;
 @group(0) @binding(9) var opacityTexture : texture_2d<f32>;
 
@@ -132,15 +132,20 @@ struct LightResult
 @group(0) @binding(11) var<storage> pointLights : array<PointLight>;
 @group(0) @binding(12) var<storage> spotLights : array<SpotLight>;
 
+fn toMat3x3( m : mat4x4f ) -> mat3x3f
+{
+    return mat3x3( m[0].xyz, m[1].xyz, m[2].xyz );
+}
+
 @vertex
 fn vs_main(in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
     
     out.positionVS =  (matrices.modelView * vec4f(in.position, 1.0)).xyz;
-    out.normalVS = mat3x3f(matrices.modelViewIT) * in.normal;
-    out.tangentVS = mat3x3f(matrices.modelViewIT) * in.tangent;
-    out.bitangentVS = mat3x3f(matrices.modelViewIT) * in.bitangent;
+    out.normalVS = toMat3x3(matrices.modelViewIT) * in.normal;
+    out.tangentVS = toMat3x3(matrices.modelViewIT) * in.tangent;
+    out.bitangentVS = toMat3x3(matrices.modelViewIT) * in.bitangent;
     out.uv = in.uv.xy;
     out.position = matrices.modelViewProjection * vec4f(in.position, 1.0);
 
@@ -177,7 +182,7 @@ fn DoSpotCone( spotDir : vec3f, L : vec3f, spotAngle : f32 ) -> f32
 fn DoPointLight( light : PointLight, V : vec3f, P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
 {
     var result : LightResult;
-    let L = light.positionVS.xyz - P;
+    var L = light.positionVS.xyz - P;
     let d = length( L );
     L = L / d;
 
@@ -196,7 +201,7 @@ fn DoPointLight( light : PointLight, V : vec3f, P : vec3f, N : vec3f, specularPo
 fn DoSpotLight( light : SpotLight, V : vec3f, P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
 {
     var result : LightResult;
-    let L = light.positionVS.xyz - P;
+    var L = light.positionVS.xyz - P;
     let d = length( L );
     L = L / d;
 
@@ -222,7 +227,7 @@ fn DoLighting( P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
     var totalResult : LightResult; // is this 0 initialized?
 
     // Iterate point lights
-    for( i : u32 = 0; i < arrayLength(pointLights); ++i )
+    for( var i : u32 = 0; i < arrayLength(&pointLights); i++ )
     {
         let result = DoPointLight( pointLights[i], V, P, N, specularPower );
 
@@ -232,7 +237,7 @@ fn DoLighting( P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
     }
 
     // Iterate spot lights
-    for( i : u32 = 0; i < arrayLength(spotLights); ++i )
+    for( var i : u32 = 0; i < arrayLength(&spotLights); i++ )
     {
         let result = DoSpotLight( spotLights[i], V, P, N, specularPower );
 
@@ -264,11 +269,11 @@ fn DoNormalMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f ) -> vec3f
     return normalize(N);
 }
 
-fn DoBumpMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f, bumpScale : f32 )
+fn DoBumpMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f, bumpScale : f32 ) -> vec3f
 {
     let height_00 = textureSample( tex, linearRepeatSampler, uv ).r * bumpScale;
     let height_10 = textureSample( tex, linearRepeatSampler, uv, vec2i(1, 0) ).r * bumpScale;
-    let height_10 = textureSample( tex, linearRepeatSampler, uv, vec2i(0, 1) ).r * bumpScale;
+    let height_01 = textureSample( tex, linearRepeatSampler, uv, vec2i(0, 1) ).r * bumpScale;
 
     let p_00 = vec3f( 0, 0, height_00 );
     let p_10 = vec3f( 0, 0, height_10 );
@@ -278,9 +283,9 @@ fn DoBumpMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f, bumpScale : 
     let bitangent = normalize( p_01 - p_00 );
     let normal = cross( tangent, bitangent );
 
-    normal = normal * TBN;
+    let N = normal * TBN;
 
-    return normal;
+    return N;
 }
 
 @fragment
@@ -288,12 +293,12 @@ fn fs_main(in: FragmentIn) -> @location(0) vec4f {
     
     // Use the alpha component of the diffuse color for opacity.
     var opacity = material.diffuse.a;
-    if (material.hasOpacityTexture)
+    if (material.hasOpacityTexture != 0)
     {
         opacity = textureSample(opacityTexture, linearRepeatSampler, in.uv ).r;
     }
 
-    if (alpha < 0.2)
+    if (opacity < 0.2)
     {
         discard; // Discard the pixel if it is below a certain threshold.
     }
@@ -301,63 +306,58 @@ fn fs_main(in: FragmentIn) -> @location(0) vec4f {
     var ambient = material.ambient;
     var emissive = material.emissive;
     var diffuse = material.diffuse;
+    var specular = material.specular;
     var specularPower = material.specularPower;
 
-    if (material.hasAmbientTexture)
+    if (material.hasAmbientTexture != 0)
     {
         ambient = textureSample(ambientTexture, linearRepeatSampler, in.uv);
     }
-    if (material.hasEmissiveTexture)
+    if (material.hasEmissiveTexture != 0)
     {
         emissive = textureSample(emissiveTexture, linearRepeatSampler, in.uv);
     }
-    if (material.hasDiffuseTexture)
+    if (material.hasDiffuseTexture != 0)
     {
         diffuse = textureSample(diffuseTexture, linearRepeatSampler, in.uv);
     }
-    if (material.hasSpecularPowerTexture)
+    if (material.hasSpecularTexture != 0)
+    {
+        specular = textureSample(specularTexture, linearRepeatSampler, in.uv);
+    }
+    if (material.hasSpecularPowerTexture != 0)
     {
         specularPower *= textureSample(specularPowerTexture, linearRepeatSampler, in.uv).x;
     }
 
     var N = normalize(in.normalVS);
-    if (material.hasNormalTexture)
+    if (material.hasNormalTexture != 0)
     {
         var tangent = normalize(in.tangentVS);
         var bitangent = normalize(in.bitangentVS);
         var normal = normalize(in.normalVS);
 
-        let TBN = float3x3f(tangent, bitangent, normal);
+        let TBN = mat3x3f(tangent, bitangent, normal);
 
         N = DoNormalMapping(TBN, normalTexture, in.uv);
     }
-    else if (material.hasBumpTexture)
+    else if (material.hasBumpTexture != 0)
     {
         var tangent = normalize(in.tangentVS);
         var bitangent = normalize(in.bitangentVS);
         var normal = normalize(in.normalVS);
 
-        let TBN = float3x3f(tangent, bitangent, normal);
+        let TBN = mat3x3f(tangent, bitangent, normal);
 
         N = DoBumpMapping(TBN, bumpTexture, in.uv, material.bumpIntensity);
     }
 
     let lighting = DoLighting( in.positionVS, N, specularPower );
 
-    diffuse *= lighting.diffuse;
     ambient *= lighting.ambient;
-    var specular : vec3f;
+    diffuse *= lighting.diffuse;
+    specular *= lighting.specular;
 
-    if (specularPower > 1.0)
-    {
-        specular = material.specular;
-        if (material.hasSpecularTexture)
-        {
-            specular = textureSample(specularTexture, linearRepeatSampler, in.uv);
-        }
-        specular *= lighting.specular;
-    }
-
-    return vec4f(emissive + ambient + diffuse + specular, alpha * material.opacity);
+    return vec4f( (emissive + ambient + diffuse + specular).rgb, opacity * material.opacity);
 }
 )"

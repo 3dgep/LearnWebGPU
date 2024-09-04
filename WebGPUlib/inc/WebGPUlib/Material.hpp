@@ -15,11 +15,11 @@ namespace WebGPUlib
 struct alignas( 16 ) MaterialProperties
 {
     MaterialProperties( 
-        const glm::vec4& diffuse = { 1, 1, 1, 1 }, 
+        const glm::vec4& diffuse = { 1, 1, 1, 1 },
         const glm::vec4& specular = { 1, 1, 1, 1 },
-        float specularPower = 128.0f, 
+        float specularPower = 128.0f,
         const glm::vec4& ambient = { 0, 0, 0, 1 },
-        const glm::vec4& emissive = { 0, 0, 0, 1 }, 
+        const glm::vec4& emissive = { 0, 0, 0, 1 },
         const glm::vec4& reflectance = { 0, 0, 0, 1 },
         float opacity = 1.0f,
         float indexOfRefraction = 0.0f,

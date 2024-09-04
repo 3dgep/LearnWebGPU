@@ -1,11 +1,10 @@
-#include "TextureUnlitPipelineState.hpp"
-
 #include <Camera.hpp>
 #include <CameraController.hpp>
 #include <Timer.hpp>
 
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/GraphicsCommandBuffer.hpp>
+#include <WebGPUlib/Material.hpp>
 #include <WebGPUlib/Mesh.hpp>
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/RenderTarget.hpp>
@@ -22,9 +21,10 @@
     #include <emscripten/html5.h>
 #endif
 
-#define SDL_MAIN_HANDLED
-#include "WebGPUlib/Material.hpp"
+#include "TextureLitPipelineState.hpp"
+#include "TextureUnlitPipelineState.hpp"
 
+#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
 #include <glm/gtc/matrix_transform.hpp>  // For matrix transformations.
@@ -56,6 +56,7 @@ std::shared_ptr<Texture>                   albedoTexture;
 std::shared_ptr<Sampler>                   linearRepeatSampler;
 std::shared_ptr<Scene>                     scene;
 std::unique_ptr<TextureUnlitPipelineState> textureUnlitPipelineState;
+std::unique_ptr<TextureLitPipelineState>   textureLitPipelineState;
 
 void onResize( uint32_t width, uint32_t height )
 {
@@ -138,6 +139,7 @@ void init()
     // Create a uniform buffer large enough to hold a single 4x4 matrix.
     mvpBuffer                 = Device::get().createUniformBuffer( nullptr, sizeof( glm::mat4 ) );
     textureUnlitPipelineState = std::make_unique<TextureUnlitPipelineState>();
+    textureLitPipelineState   = std::make_unique<TextureLitPipelineState>();
 
     cameraController = std::make_unique<CameraController>( camera, glm::vec3 { 7.5, 2, 0 }, glm::vec3 { 0, 80, 0 } );
 
