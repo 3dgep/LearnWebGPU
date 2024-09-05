@@ -1,3 +1,8 @@
+#include "Light.hpp"
+#include "Matrices.hpp"
+#include "TextureLitPipelineState.hpp"
+#include "TextureUnlitPipelineState.hpp"
+
 #include <Camera.hpp>
 #include <CameraController.hpp>
 #include <Timer.hpp>
@@ -21,9 +26,6 @@
     #include <emscripten/html5.h>
 #endif
 
-#include "TextureLitPipelineState.hpp"
-#include "TextureUnlitPipelineState.hpp"
-
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
@@ -43,6 +45,9 @@ SDL_Window*   window        = nullptr;
 Timer                             timer;
 Camera                            camera;
 std::unique_ptr<CameraController> cameraController;
+
+std::vector<PointLight> pointLights;
+std::vector<SpotLight>  spotLights;
 
 bool isRunning = true;
 
@@ -153,6 +158,9 @@ void init()
     // Scale the root node
     scene->getRootNode()->setLocalTransform( glm::scale( glm::mat4 { 1 }, glm::vec3 { 1.0f / 100.0f } ) );
 
+    pointLights.emplace_back();
+    spotLights.emplace_back();
+
     // Setup the texture sampler.
     WGPUSamplerDescriptor linearRepeatSamplerDesc {};
     linearRepeatSamplerDesc.label         = "Linear Repeat Sampler";
@@ -170,24 +178,44 @@ void init()
     linearRepeatSampler = Device::get().createSampler( linearRepeatSamplerDesc );
 }
 
+void bindTexture( std::shared_ptr<GraphicsCommandBuffer> commandBuffer, int groupIndex, int binding,
+                  std::shared_ptr<Texture> texture )
+{
+    const auto view = texture ? texture->getView() : Device::get().getDefaultWhiteTexture()->getView();
+    commandBuffer->bindTexture( groupIndex, binding, *( view ) );
+}
+
 void renderNode( std::shared_ptr<GraphicsCommandBuffer> commandBuffer, std::shared_ptr<SceneNode> node )
 {
     auto worldMatrix      = node->getWorldTransform();
     auto viewMatrix       = camera.getViewMatrix();
     auto projectionMatrix = camera.getProjectionMatrix();
 
-    auto mvp = projectionMatrix * viewMatrix * worldMatrix;
+    Matrices matrices;
+    matrices.model               = worldMatrix;
+    matrices.modelView           = viewMatrix * worldMatrix;
+    matrices.modelViewIT         = transpose( inverse( matrices.modelView ) );
+    matrices.modelViewProjection = projectionMatrix * viewMatrix * worldMatrix;
 
-    commandBuffer->bindDynamicUniformBuffer( 0, 0, mvp );
+    commandBuffer->bindDynamicUniformBuffer( 0, 0, matrices );
+    commandBuffer->bindSampler( 0, 10, *linearRepeatSampler );
 
     for ( auto& mesh: node->getMeshes() )
     {
-        auto material = mesh->getMaterial();
-        if ( auto diffuseTexture = material->getTexture( TextureSlot::Diffuse ) )
-        {
-            commandBuffer->bindTexture( 0, 1, *( diffuseTexture->getView() ) );
-            commandBuffer->draw( *mesh );
-        }
+        const auto material = mesh->getMaterial();
+
+        commandBuffer->bindDynamicUniformBuffer( 0, 1, material->getProperties() );
+
+        bindTexture( commandBuffer, 0, 2, material->getTexture( TextureSlot::Ambient ) );
+        bindTexture( commandBuffer, 0, 3, material->getTexture( TextureSlot::Emissive ) );
+        bindTexture( commandBuffer, 0, 4, material->getTexture( TextureSlot::Diffuse ) );
+        bindTexture( commandBuffer, 0, 5, material->getTexture( TextureSlot::Specular ) );
+        bindTexture( commandBuffer, 0, 6, material->getTexture( TextureSlot::SpecularPower ) );
+        bindTexture( commandBuffer, 0, 7, material->getTexture( TextureSlot::Normal ) );
+        bindTexture( commandBuffer, 0, 8, material->getTexture( TextureSlot::Bump ) );
+        bindTexture( commandBuffer, 0, 9, material->getTexture( TextureSlot::Opacity ) );
+
+        commandBuffer->draw( *mesh );
     }
 
     for ( auto& child: node->getChildren() )
@@ -204,10 +232,10 @@ void render()
     renderTarget.attachTexture( AttachmentPoint::Color0, colorTextureView, surface->getNextTextureView() );
     renderTarget.attachTexture( AttachmentPoint::DepthStencil, depthTextureView );
 
-    auto queue = Device::get().getQueue();
+    const auto queue = Device::get().getQueue();
 
-    auto commandBuffer = queue->createGraphicsCommandBuffer( renderTarget, ClearFlags::Color | ClearFlags::Depth,
-                                                             { 0.4f, 0.6f, 0.9f, 1.0f }, 1.0f );
+    const auto commandBuffer = queue->createGraphicsCommandBuffer( renderTarget, ClearFlags::Color | ClearFlags::Depth,
+                                                                   { 0.4f, 0.6f, 0.9f, 1.0f }, 1.0f );
 
     // Set the pipeline state.
     commandBuffer->setGraphicsPipeline( *textureUnlitPipelineState );
@@ -218,6 +246,11 @@ void render()
     commandBuffer->bindSampler( 0, 2, *linearRepeatSampler );
 
     commandBuffer->draw( *cubeMesh );
+
+    commandBuffer->setGraphicsPipeline( *textureLitPipelineState );
+
+    commandBuffer->bindDynamicStorageBuffer( 0, 11, pointLights );
+    commandBuffer->bindDynamicStorageBuffer( 0, 12, spotLights );
 
     // Render the scene.
     renderNode( commandBuffer, scene->getRootNode() );
@@ -297,7 +330,7 @@ void update( void* userdata = nullptr )
     glm::mat4 projectionMatrix = camera.getProjectionMatrix();
     glm::mat4 mvpMatrix        = projectionMatrix * viewMatrix * modelMatrix;
 
-    auto queue = Device::get().getQueue();
+    const auto queue = Device::get().getQueue();
     queue->writeBuffer( *mvpBuffer, mvpMatrix );
 
     render();

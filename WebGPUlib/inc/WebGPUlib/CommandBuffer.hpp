@@ -32,6 +32,9 @@ public:
     template<typename T>
     void bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t binding, const T& data );
 
+    template<typename T>
+    void bindDynamicStorageBuffer( uint32_t groupIndex, uint32_t binding, const std::vector<T>& data );
+    void bindDynamicStorageBuffer( uint32_t groupIndex, uint32_t binding, const void* data, std::size_t elementCount, std::size_t elementSize );
 
     WGPUCommandEncoder getWGPUCommandEncoder() const
     {
@@ -56,6 +59,7 @@ protected:
     WGPUCommandEncoder commandEncoder = nullptr;
     std::vector<std::shared_ptr<BindGroup>> bindGroups;
     std::unique_ptr<UploadBuffer>           uniformUploadBuffer;
+    std::unique_ptr<UploadBuffer>           storageUploadBuffer;
 };
 
 template<typename T>
@@ -63,4 +67,11 @@ void CommandBuffer::bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t bind
 {
     bindDynamicUniformBuffer( groupIndex, binding, &data, sizeof( T ) );
 }
+
+template<typename T>
+void CommandBuffer::bindDynamicStorageBuffer( uint32_t groupIndex, uint32_t binding, const std::vector<T>& data )
+{
+    bindDynamicStorageBuffer( groupIndex, binding, &data, data.size(), sizeof( T ) );
+}
+
 }  // namespace WebGPUlib

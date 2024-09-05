@@ -3,11 +3,13 @@
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/GenerateMipsPipelineState.hpp>
 #include <WebGPUlib/IndexBuffer.hpp>
+#include <WebGPUlib/Material.hpp>
 #include <WebGPUlib/Mesh.hpp>
 #include <WebGPUlib/Queue.hpp>
 #include <WebGPUlib/Sampler.hpp>
 #include <WebGPUlib/Scene.hpp>
 #include <WebGPUlib/SceneNode.hpp>
+#include <WebGPUlib/StorageBuffer.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/Texture.hpp>
 #include <WebGPUlib/UniformBuffer.hpp>
@@ -20,10 +22,6 @@
 #ifdef WEBGPU_BACKEND_WGPU
     #include <webgpu/wgpu.h>  // Include non-standard functions.
 #endif
-
-#include "WebGPUlib/Material.hpp"
-
-#include <tiny_obj_loader.h>
 
 #include <assimp/Exporter.hpp>
 #include <assimp/Importer.hpp>
@@ -103,6 +101,13 @@ struct MakeUniformBuffer : UniformBuffer
 {
     MakeUniformBuffer( WGPUBuffer&& buffer, std::size_t size )
     : UniformBuffer( std::move( buffer ), size )  // NOLINT(performance-move-const-arg)
+    {}
+};
+
+struct MakeStorageBuffer : StorageBuffer
+{
+    MakeStorageBuffer( WGPUBuffer&& buffer, std::size_t elementCount, std::size_t elementSize )
+    : StorageBuffer( std::move( buffer ), elementCount, elementSize )  // NOLINT(performance-move-const-arg)
     {}
 };
 
@@ -307,8 +312,28 @@ Device::Device( SDL_Window* window )
         std::cerr << "Failed to get device queue." << std::endl;
         return;
     }
-
     queue = std::make_shared<MakeQueue>( std::move( _queue ) );  // NOLINT(performance-move-const-arg)
+
+    WGPUTextureDescriptor defaultTextureDesc {};
+    defaultTextureDesc.label           = "Default White Texture";
+    defaultTextureDesc.usage           = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    defaultTextureDesc.dimension       = WGPUTextureDimension_2D;
+    defaultTextureDesc.size            = { 1, 1, 1 };
+    defaultTextureDesc.format          = WGPUTextureFormat_RGBA8Unorm;
+    defaultTextureDesc.mipLevelCount   = 1;
+    defaultTextureDesc.sampleCount     = 1;
+    defaultTextureDesc.viewFormatCount = 1;
+    defaultTextureDesc.viewFormats     = &defaultTextureDesc.format;
+    whiteTexture                       = createTexture( defaultTextureDesc );
+
+    uint32_t white = 0xffffffff;
+    queue->writeTexture( *whiteTexture, 0, &white, sizeof( white ) );
+
+    defaultTextureDesc.label = "Default Magenta Texture";
+    magentaTexture           = createTexture( defaultTextureDesc );
+
+    uint32_t magenta = 0xffff00ff;
+    queue->writeTexture( *magentaTexture, 0, &magenta, sizeof( magenta ) );
 }
 
 Device::~Device()
@@ -410,8 +435,8 @@ std::shared_ptr<Texture> Device::createTexture( const WGPUTextureDescriptor& tex
 {
     WGPUTexture texture = wgpuDeviceCreateTexture( device, &textureDescriptor );
 
-    return std::make_shared<MakeTexture>( std::move( texture ),
-                                          textureDescriptor );  // NOLINT(performance-move-const-arg)
+    return std::make_shared<MakeTexture>( std::move( texture ),  // NOLINT(performance-move-const-arg)
+                                          textureDescriptor );
 }
 
 std::shared_ptr<Texture> Device::loadTexture( const std::filesystem::path& _filePath )
@@ -612,150 +637,6 @@ void Device::generateMips( Texture& texture )
 
     queue->submit( *commandBuffer );
 }
-
-#if 0
-glm::vec4 parseColor( const tinyobj::real_t color[3] )
-{
-    return { color[0], color[1], color[2], 1.0f };
-}
-
-std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath )
-{
-    if ( !exists( filePath ) || !is_regular_file( filePath ) )
-    {
-        std::cerr << "ERROR: Failed to load scene file: " << filePath << std::endl;
-        return nullptr;
-    }
-
-    tinyobj::ObjReaderConfig config {};
-    tinyobj::ObjReader       reader;
-
-    if ( !reader.ParseFromFile( filePath.string(), config ) )
-    {
-        if ( !reader.Error().empty() )
-        {
-            std::cerr << "ERROR: Failed to parse model file: " << filePath << std::endl;
-            std::cerr << reader.Error() << std::endl;
-        }
-        return nullptr;
-    }
-
-    if ( !reader.Warning().empty() )
-    {
-        std::cout << "WARNING: Warning parsing model file: " << filePath << std::endl;
-        std::cout << reader.Warning() << std::endl;
-    }
-
-    auto rootNode = std::make_shared<SceneNode>();
-
-    auto& attrib = reader.GetAttrib();
-    auto& shapes = reader.GetShapes();
-    auto& mats   = reader.GetMaterials();
-
-    auto parentPath = filePath.parent_path();
-
-    std::vector<std::shared_ptr<Material>> materials;
-    materials.reserve( mats.size() );
-
-    // Loop over materials
-    for ( auto& m: mats )
-    {
-        glm::vec4 diffuse       = parseColor( m.diffuse );
-        glm::vec4 specular      = parseColor( m.specular );
-        glm::vec4 ambient       = parseColor( m.ambient );
-        glm::vec4 emissive      = parseColor( m.emission );
-        float     specularPower = m.shininess;
-
-        auto diffuseTexture  = m.diffuse_texname.empty() ? nullptr : loadTexture( parentPath / m.diffuse_texname );
-        auto alphaTexture    = m.alpha_texname.empty() ? nullptr : loadTexture( parentPath / m.alpha_texname );
-        auto specularTexture = m.specular_texname.empty() ? nullptr : loadTexture( parentPath / m.specular_texname );
-        auto specularPowerTexture =
-            m.specular_highlight_texname.empty() ? nullptr : loadTexture( parentPath / m.specular_highlight_texname );
-        auto normalTexture   = m.bump_texname.empty() ? nullptr : loadTexture( parentPath / m.bump_texname );
-        auto ambientTexture  = m.ambient_texname.empty() ? nullptr : loadTexture( parentPath / m.ambient_texname );
-        auto emissiveTexture = m.emissive_texname.empty() ? nullptr : loadTexture( parentPath / m.emissive_texname );
-
-        std::shared_ptr<Material> material = std::make_shared<Material>();
-        material->setDiffuse( diffuse );
-        material->setSpecular( specular );
-        material->setSpecularPower( specularPower );
-        material->setAmbient( ambient );
-        material->setEmissive( emissive );
-        material->setTexture( TextureSlot::Diffuse, diffuseTexture );
-        material->setTexture( TextureSlot::Opacity, alphaTexture );
-        material->setTexture( TextureSlot::Specular, specularTexture );
-        material->setTexture( TextureSlot::SpecularPower, specularPowerTexture );
-        material->setTexture( TextureSlot::Normal, normalTexture );
-        material->setTexture( TextureSlot::Ambient, ambientTexture );
-        material->setTexture( TextureSlot::Emissive, emissiveTexture );
-
-        materials.push_back( material );
-    }
-
-    // Loop over shapes
-    for ( auto& s: shapes )
-    {
-        auto& m = s.mesh;
-
-        std::vector<VertexPositionNormalTexture> vertices;
-        vertices.reserve( m.num_face_vertices.size() * 3 );
-
-        size_t indexOffset = 0;
-
-        for ( auto numVerts: m.num_face_vertices )
-        {
-            // We only want 3 vertices per face.
-            assert( numVerts == 3 );
-
-            // Loop over the vertices of the triangle.
-            for ( size_t v = 0; v < numVerts; ++v )
-            {
-                VertexPositionNormalTexture vert {};
-
-                auto idx = m.indices[indexOffset + v];
-
-                vert.position.x = attrib.vertices[idx.vertex_index * 3 + 0];
-                vert.position.y = attrib.vertices[idx.vertex_index * 3 + 1];
-                vert.position.z = attrib.vertices[idx.vertex_index * 3 + 2];
-
-                if ( idx.normal_index >= 0 )
-                {
-                    vert.normal.x = attrib.normals[idx.normal_index * 3 + 0];
-                    vert.normal.y = attrib.normals[idx.normal_index * 3 + 1];
-                    vert.normal.z = attrib.normals[idx.normal_index * 3 + 2];
-                }
-
-                if ( idx.texcoord_index >= 0 )
-                {
-                    vert.texCoord.x = attrib.texcoords[idx.texcoord_index * 2 + 0];
-                    vert.texCoord.y = 1.0f - attrib.texcoords[idx.texcoord_index * 2 + 1];
-                }
-
-                vertices.push_back( vert );
-            }
-
-            indexOffset += numVerts;
-        }
-
-        auto vertexBuffer = createVertexBuffer( vertices );
-        auto mesh         = std::make_shared<Mesh>( vertexBuffer );
-
-        if ( !m.material_ids.empty() )
-        {
-            // Per-face materials are not supported.
-            auto materialId = m.material_ids[0];
-            if ( materialId >= 0 && materialId < static_cast<int>( materials.size() ) )
-            {
-                mesh->setMaterial( materials[materialId] );
-            }
-        }
-
-        rootNode->addMesh( mesh );
-    }
-
-    return std::make_shared<Scene>( rootNode );
-}
-#else
 
 std::shared_ptr<SceneNode> importSceneNode( const aiNode* aiNode, std::shared_ptr<SceneNode> parent,
                                             const std::vector<std::shared_ptr<Mesh>>& meshes )
@@ -1020,7 +901,6 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
 
     return std::make_shared<Scene>( rootNode );
 }
-#endif
 
 std::shared_ptr<VertexBuffer> Device::createVertexBuffer( const void* vertexData, std::size_t vertexCount,
                                                           std::size_t vertexStride ) const
@@ -1075,12 +955,41 @@ std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const void* data, st
     return uniformBuffer;
 }
 
+std::shared_ptr<StorageBuffer> Device::createStorageBuffer( const void* data, std::size_t elementCount,
+                                                            std::size_t elementSize ) const
+{
+    std::size_t          size = elementCount * elementSize;
+    WGPUBufferDescriptor bufferDescriptor {};
+    bufferDescriptor.size             = size;
+    bufferDescriptor.usage            = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
+    bufferDescriptor.mappedAtCreation = false;
+    WGPUBuffer buffer                 = wgpuDeviceCreateBuffer( device, &bufferDescriptor );
+
+    auto vertexBuffer = std::make_shared<MakeStorageBuffer>( std::move( buffer ),  // NOLINT(performance-move-const-arg)
+                                                             elementCount, elementSize );
+
+    if ( data )
+        queue->writeBuffer( *vertexBuffer, data, size );
+
+    return vertexBuffer;
+}
+
 std::shared_ptr<Sampler> Device::createSampler( const WGPUSamplerDescriptor& samplerDescriptor ) const
 {
     WGPUSampler sampler = wgpuDeviceCreateSampler( device, &samplerDescriptor );
 
     return std::make_shared<MakeSampler>( std::move( sampler ),  // NOLINT(performance-move-const-arg)
                                           samplerDescriptor );
+}
+
+std::shared_ptr<Texture> Device::getDefaultWhiteTexture() const
+{
+    return whiteTexture;
+}
+
+std::shared_ptr<Texture> Device::getDefaultMagentaTexture() const
+{
+    return magentaTexture;
 }
 
 void Device::poll( bool sleep )

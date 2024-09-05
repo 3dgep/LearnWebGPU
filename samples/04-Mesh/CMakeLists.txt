@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(TARGET_NAME 04-Mesh)
 
 set( SRC
+	Light.hpp
 	main.cpp
+	Matrices.hpp
 	TextureUnlitPipelineState.hpp
 	TextureUnlitPipelineState.cpp
 	TextureLitPipelineState.hpp
@@ -17,7 +19,7 @@ set( SRC
 
 add_executable( ${TARGET_NAME} ${SRC} )
 target_link_libraries( ${TARGET_NAME}
-	PRIVATE 00-Common SDL2::SDL2 webgpu sdl2webgpu glm::glm tinyobjloader stb_image WebGPUlib
+	PRIVATE 00-Common WebGPUlib
 )
 
 if(EMSCRIPTEN)

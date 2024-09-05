@@ -1,7 +1,10 @@
 #include "TextureLitPipelineState.hpp"
+#include "Light.hpp"
+#include "Matrices.hpp"
 
 #include <WebGPUlib/Device.hpp>
 #include <WebGPUlib/GraphicsCommandBuffer.hpp>
+#include <WebGPUlib/Material.hpp>
 #include <WebGPUlib/Surface.hpp>
 #include <WebGPUlib/Vertex.hpp>
 
@@ -29,23 +32,52 @@ TextureLitPipelineState::TextureLitPipelineState()
     WGPUShaderModule shaderModule      = wgpuDeviceCreateShaderModule( device, &shaderModuleDescriptor );
 
     // Setup the binding layout.
-    // @group( 0 ) @binding( 0 ) var<uniform> mvp : mat4x4f;
-    // @group( 0 ) @binding( 1 ) var          albedoTexture : texture_2d<f32>;
-    // @group( 0 ) @binding( 2 ) var          linearRepeatSampler : sampler;
-    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[3] {};
+    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[13] {};
+
+    // @group( 0 ) @binding( 0 ) var<uniform> matrices : Matrices;
     bindGroupLayoutEntries[0].binding               = 0;
     bindGroupLayoutEntries[0].visibility            = WGPUShaderStage_Vertex;
     bindGroupLayoutEntries[0].buffer.type           = WGPUBufferBindingType_Uniform;
-    bindGroupLayoutEntries[0].buffer.minBindingSize = sizeof( glm::mat4 );
+    bindGroupLayoutEntries[0].buffer.minBindingSize = sizeof( Matrices );
 
+    // @group( 0 ) @binding( 1 ) var<uniform> material : Material;
     bindGroupLayoutEntries[1].binding               = 1;
     bindGroupLayoutEntries[1].visibility            = WGPUShaderStage_Fragment;
-    bindGroupLayoutEntries[1].texture.sampleType    = WGPUTextureSampleType_Float;
-    bindGroupLayoutEntries[1].texture.viewDimension = WGPUTextureViewDimension_2D;
+    bindGroupLayoutEntries[1].buffer.type           = WGPUBufferBindingType_Uniform;
+    bindGroupLayoutEntries[1].buffer.minBindingSize = sizeof( MaterialProperties );
 
-    bindGroupLayoutEntries[2].binding      = 2;
-    bindGroupLayoutEntries[2].visibility   = WGPUShaderStage_Fragment;
-    bindGroupLayoutEntries[2].sampler.type = WGPUSamplerBindingType_Filtering;
+    // @group( 0 ) @binding( 2 ) var ambientTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 3 ) var emissiveTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 4 ) var diffuseTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 5 ) var specularTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 6 ) var specularPowerTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 7 ) var normalTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 8 ) var bumpTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 9 ) var opacityTexture : texture_2d<f32>;
+    for ( int binding = 2; binding <= 9; ++binding )
+    {
+        bindGroupLayoutEntries[binding].binding               = binding;
+        bindGroupLayoutEntries[binding].visibility            = WGPUShaderStage_Fragment;
+        bindGroupLayoutEntries[binding].texture.sampleType    = WGPUTextureSampleType_Float;
+        bindGroupLayoutEntries[binding].texture.viewDimension = WGPUTextureViewDimension_2D;
+    }
+
+    // @group( 0 ) @binding( 10 ) var linearRepeatSampler : sampler;
+    bindGroupLayoutEntries[10].binding      = 10;
+    bindGroupLayoutEntries[10].visibility   = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[10].sampler.type = WGPUSamplerBindingType_Filtering;
+
+    // @group( 0 ) @binding( 11 ) var<storage> pointLights : array<PointLight>;
+    bindGroupLayoutEntries[11].binding               = 11;
+    bindGroupLayoutEntries[11].visibility            = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[11].buffer.type           = WGPUBufferBindingType_ReadOnlyStorage;
+    bindGroupLayoutEntries[11].buffer.minBindingSize = sizeof(PointLight);
+
+    // @group( 0 ) @binding( 12 ) var<storage> spotLights : array<SpotLight>;
+    bindGroupLayoutEntries[12].binding               = 12;
+    bindGroupLayoutEntries[12].visibility            = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[12].buffer.type           = WGPUBufferBindingType_ReadOnlyStorage;
+    bindGroupLayoutEntries[12].buffer.minBindingSize = sizeof(SpotLight);
 
     // Setup the binding group.
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor {};
@@ -60,27 +92,40 @@ TextureLitPipelineState::TextureLitPipelineState()
     WGPUPipelineLayout pipelineLayout             = wgpuDeviceCreatePipelineLayout( device, &pipelineLayoutDescriptor );
 
     // Setup the vertex layout.
-    // glm::vec3 position;
-    // glm::vec3 normal;
-    // glm::vec3 texCoord;
-    WGPUVertexAttribute vertexAttributes[3] {};
+    // @location(0) position : vec3f,
+    // @location(1) normal   : vec3f,
+    // @location(2) tangent  : vec3f,
+    // @location(3) bitangent: vec3f,
+    // @location(4) uv       : vec3f,
+
+    WGPUVertexAttribute vertexAttributes[5] {};
     // glm::vec3 position;
     vertexAttributes[0].format         = WGPUVertexFormat_Float32x3;
-    vertexAttributes[0].offset         = offsetof( VertexPositionNormalTexture, position );
+    vertexAttributes[0].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, position );
     vertexAttributes[0].shaderLocation = 0;
 
     // glm::vec3 normal;
     vertexAttributes[1].format         = WGPUVertexFormat_Float32x3;
-    vertexAttributes[1].offset         = offsetof( VertexPositionNormalTexture, normal );
+    vertexAttributes[1].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, normal );
     vertexAttributes[1].shaderLocation = 1;
 
-    // glm::vec3 texCoord;
+    // glm::vec3 tangent;
     vertexAttributes[2].format         = WGPUVertexFormat_Float32x3;
-    vertexAttributes[2].offset         = offsetof( VertexPositionNormalTexture, texCoord );
+    vertexAttributes[2].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, tangent );
     vertexAttributes[2].shaderLocation = 2;
 
+    // glm::vec3 bitangent;
+    vertexAttributes[3].format         = WGPUVertexFormat_Float32x3;
+    vertexAttributes[3].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, bitangent );
+    vertexAttributes[3].shaderLocation = 3;
+
+    // glm::vec3 texCoord;
+    vertexAttributes[4].format         = WGPUVertexFormat_Float32x3;
+    vertexAttributes[4].offset         = offsetof( VertexPositionNormalTangentBitangentTexture, texCoord );
+    vertexAttributes[4].shaderLocation = 4;
+
     WGPUVertexBufferLayout vertexBufferLayout {};
-    vertexBufferLayout.arrayStride    = sizeof( VertexPositionNormalTexture );
+    vertexBufferLayout.arrayStride    = sizeof( VertexPositionNormalTangentBitangentTexture );
     vertexBufferLayout.stepMode       = WGPUVertexStepMode_Vertex;
     vertexBufferLayout.attributeCount = std::size( vertexAttributes );
     vertexBufferLayout.attributes     = vertexAttributes;
@@ -137,7 +182,7 @@ TextureLitPipelineState::TextureLitPipelineState()
 
     // Multisampling
     WGPUMultisampleState multisampleState {};
-    multisampleState.count                  = 1;
+    multisampleState.count                  = 4;
     multisampleState.mask                   = ~0u;
     multisampleState.alphaToCoverageEnabled = false;
 

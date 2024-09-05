@@ -18,6 +18,7 @@ class Mesh;
 class Sampler;
 class Scene;
 class Surface;
+class StorageBuffer;
 class Texture;
 class UniformBuffer;
 class VertexBuffer;
@@ -66,7 +67,15 @@ public:
     std::shared_ptr<UniformBuffer> createUniformBuffer( const T& data ) const;
     std::shared_ptr<UniformBuffer> createUniformBuffer( const void* data, std::size_t size ) const;
 
+    template<typename T>
+    std::shared_ptr<StorageBuffer> createStorageBuffer( const std::vector<T>& data ) const;
+    std::shared_ptr<StorageBuffer> createStorageBuffer( const void* data, std::size_t elementCount, std::size_t elementSize ) const;
+
     std::shared_ptr<Sampler> createSampler( const WGPUSamplerDescriptor& samplerDescriptor ) const;
+
+    std::shared_ptr<Texture> getDefaultWhiteTexture() const;
+
+    std::shared_ptr<Texture> getDefaultMagentaTexture() const;
 
     void poll( bool sleep = false );
 
@@ -93,6 +102,8 @@ private:
     WGPUDevice               device   = nullptr;
     std::shared_ptr<Queue>   queue    = nullptr;
     std::shared_ptr<Surface> surface  = nullptr;
+    std::shared_ptr<Texture> whiteTexture = nullptr;
+    std::shared_ptr<Texture> magentaTexture = nullptr;
 
     std::unique_ptr<GenerateMipsPipelineState> generateMipsPipelineState;
 };
@@ -113,6 +124,12 @@ template<typename T>
 std::shared_ptr<UniformBuffer> Device::createUniformBuffer( const T& data ) const
 {
     return createUniformBuffer( &data, sizeof( T ) );
+}
+
+template<typename T>
+std::shared_ptr<StorageBuffer> Device::createStorageBuffer( const std::vector<T>& data ) const
+{
+    return createStorageBuffer( data.data(), data.size(), sizeof( T ) );
 }
 
 }  // namespace WebGPUlib

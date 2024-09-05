@@ -1,3 +1,4 @@
+#include "WebGPUlib/Helpers.hpp"
 #include "WebGPUlib/Queue.hpp"
 
 #include <WebGPUlib/BindGroup.hpp>
@@ -82,11 +83,26 @@ void CommandBuffer::bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t bind
     bindGroup->bind( binding, allocation.buffer, allocation.offset, sizeInBytes );
 }
 
+void CommandBuffer::bindDynamicStorageBuffer( uint32_t groupIndex, uint32_t binding, const void* data,
+                                              std::size_t elementCount, std::size_t elementSize )
+{
+    auto sizeInBytes = elementCount * elementSize;
+    auto allocation  = storageUploadBuffer->allocate( sizeInBytes, 256 );
+
+    auto queue = Device::get().getQueue();
+
+    queue->writeBuffer( allocation.buffer, data, sizeInBytes, allocation.offset );
+
+    auto bindGroup = getBindGroup( groupIndex );
+    bindGroup->bind( binding, allocation.buffer, allocation.offset, sizeInBytes );
+}
+
 CommandBuffer::CommandBuffer(
     WGPUCommandEncoder&& _commandEncoder )  // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
 : commandEncoder { _commandEncoder }
 {
     uniformUploadBuffer = std::make_unique<MakeUploadBuffer>( WGPUBufferUsage_Uniform, _2MB );
+    storageUploadBuffer = std::make_unique<MakeUploadBuffer>( WGPUBufferUsage_Storage, _2MB );
 }
 
 CommandBuffer::~CommandBuffer()

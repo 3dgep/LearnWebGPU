@@ -17,7 +17,6 @@ add_subdirectory(SDL)
 add_subdirectory(webgpu)
 add_subdirectory(sdl2webgpu)
 add_subdirectory(stb)
-add_subdirectory(tinyobjloader)
 add_subdirectory(assimp)
 
 set_target_properties( SDL2-static sdl_headers_copy sdl2webgpu
@@ -28,11 +27,6 @@ set_target_properties( SDL2-static sdl_headers_copy sdl2webgpu
 set_target_properties( glm
 	PROPERTIES
 		FOLDER External/GLM
-)
-
-set_target_properties( tinyobjloader
-	PROPERTIES
-		FOLDER External
 )
 
 set( assimp_targets
