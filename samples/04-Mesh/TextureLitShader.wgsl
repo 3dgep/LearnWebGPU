@@ -99,7 +99,6 @@ struct SpotLight
     linearAttenuation : f32,
     //----------------------------------- (16 byte boundary)
     quadraticAttenuation : f32,
-    padding : vec3f,
     //----------------------------------- (16 byte boundary)
     // Total:                              16 * 7 = 112 bytes
 };
@@ -298,7 +297,7 @@ fn fs_main(in: FragmentIn) -> @location(0) vec4f {
         opacity = textureSample(opacityTexture, linearRepeatSampler, in.uv ).r;
     }
 
-    if (opacity < 0.2)
+    if (opacity < 0.1)
     {
         discard; // Discard the pixel if it is below a certain threshold.
     }

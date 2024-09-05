@@ -108,7 +108,7 @@ std::shared_ptr<Texture> Material::getTexture( TextureSlot slot ) const
 
 void Material::setTexture( TextureSlot slot, std::shared_ptr<Texture> texture )
 {
-    textures[slot] = std::move( texture );
+    textures[slot] = texture;
 
     switch ( slot )
     {
