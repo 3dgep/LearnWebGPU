@@ -810,7 +810,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
                   aiMaterial->GetTexture( aiTextureType_HEIGHT, 0, &texturePath ) == aiReturn_SUCCESS )
         {
             auto texture = loadTexture( parentPath / texturePath.C_Str() );
-            material->setTexture( TextureSlot::Bump, texture );
+            material->setTexture( TextureSlot::Normal, texture ); // Assume height maps are actually normal maps.
         }
 
         materials.emplace_back( std::move( material ) );

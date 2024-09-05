@@ -357,6 +357,8 @@ fn fs_main(in: FragmentIn) -> @location(0) vec4f {
     diffuse *= lighting.diffuse;
     specular *= lighting.specular;
 
+    return vec4f(N, 1);
+
     return vec4f( (emissive + ambient + diffuse + specular).rgb, opacity * material.opacity);
 }
 )"
