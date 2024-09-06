@@ -692,7 +692,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
         importer.SetPropertyInteger( AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE );
 
         unsigned int preprocessFlags = aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_OptimizeGraph |
-                                       aiProcess_ConvertToLeftHanded | aiProcess_GenBoundingBoxes;
+                                       aiProcess_FlipUVs | aiProcess_GenBoundingBoxes;
         scene = importer.ReadFile( filePath.string(), preprocessFlags );
 
         if ( scene )

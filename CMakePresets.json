@@ -18,10 +18,7 @@
             "displayName": "Emscripten",
             "generator": "Ninja Multi-Config",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "toolchainFile": "tools/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
-            "cacheVariables": {
-                "BUILD_SHARED_LIBS": "OFF"
-            }
+            "toolchainFile": "tools/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
         }
     ],
     "buildPresets": [

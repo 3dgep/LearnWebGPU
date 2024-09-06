@@ -263,7 +263,7 @@ fn DoNormalMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f ) -> vec3f
     N = ExpandNormal( N );
 
     // Transfrom normal from texture space to view space.
-    N = N * TBN;
+    N = TBN * N;
 
     return normalize(N);
 }
@@ -282,7 +282,7 @@ fn DoBumpMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f, bumpScale : 
     let bitangent = normalize( p_01 - p_00 );
     let normal = cross( tangent, bitangent );
 
-    let N = normal * TBN;
+    let N = TBN * normal;
 
     return N;
 }
@@ -357,7 +357,7 @@ fn fs_main(in: FragmentIn) -> @location(0) vec4f {
     diffuse *= lighting.diffuse;
     specular *= lighting.specular;
 
-    return vec4f(N, 1);
+    return pointLights[0].color;
 
     return vec4f( (emissive + ambient + diffuse + specular).rgb, opacity * material.opacity);
 }
