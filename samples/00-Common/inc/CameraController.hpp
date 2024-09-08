@@ -39,5 +39,5 @@ private:
 
     // Tweakables
     static constexpr inline float rotationSpeed = 5.0f;   // Degrees per second.
-    static constexpr inline float movementSpeed = 10.0f;  // Units per second.
+    static constexpr inline float movementSpeed = 20.0f;  // Units per second.
 };

@@ -153,12 +153,12 @@ void init()
     onResize( WINDOW_WIDTH, WINDOW_HEIGHT );
 
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
-    cubeMesh      = Device::get().createCube( 2.0f );
-    sphereMesh    = Device::get().createSphere( 10.0f );
+    cubeMesh      = Device::get().createCube( 5.0f );
+    sphereMesh    = Device::get().createSphere( 0.5f );
     scene         = Device::get().loadScene( "assets/crytek-sponza/sponza_nobanner.obj" );
 
     // Scale the root node
-    scene->getRootNode()->setLocalTransform( glm::scale( glm::mat4 { 1 }, glm::vec3 { 1.0f / 10.0f } ) );
+    scene->getRootNode()->setLocalTransform( glm::scale( glm::mat4 { 1 }, glm::vec3 { 0.1f } ) );
 
     // Setup the texture sampler.
     WGPUSamplerDescriptor linearRepeatSamplerDesc {};
@@ -241,13 +241,16 @@ void render()
 
     // Bind parameters.
     commandBuffer->bindBuffer( 0, 0, *mvpBuffer );
-    commandBuffer->bindTexture( 0, 1, *albedoTexture->getView() );
-    commandBuffer->bindSampler( 0, 2, *linearRepeatSampler );
+    commandBuffer->bindDynamicUniformBuffer( 0, 1, glm::vec4 { 1 } );
+    commandBuffer->bindTexture( 0, 2, *albedoTexture->getView() );
+    commandBuffer->bindSampler( 0, 3, *linearRepeatSampler );
 
     commandBuffer->draw( *cubeMesh );
 
     glm::mat4 viewMatrix = camera.getViewMatrix();
     glm::mat4 projectionMatrix = camera.getProjectionMatrix();
+
+    commandBuffer->bindTexture( 0, 2, *( Device::get().getDefaultWhiteTexture()->getView() ) );
 
     // Draw a sphere for each point light.
     for (auto& p : pointLights)
@@ -257,6 +260,8 @@ void render()
         glm::mat4 mvp         = projectionMatrix * viewMatrix * worldMatrix;
 
         commandBuffer->bindDynamicUniformBuffer( 0, 0, mvp );
+        commandBuffer->bindDynamicUniformBuffer( 0, 1, p.color );
+
         commandBuffer->draw( *sphereMesh );
     }
 
@@ -336,7 +341,7 @@ void update( void* userdata = nullptr )
     // Update the model-view-projection matrix for the cube.
     float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
     glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
-    glm::mat4 t                = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 2, 0 } );
+    glm::mat4 t                = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 10, 0 } );
     glm::mat4 r                = glm::rotate( glm::mat4 { 1 }, glm::radians( angle ), axis );
     glm::mat4 modelMatrix      = t * r;
     glm::mat4 viewMatrix       = camera.getViewMatrix();
@@ -347,13 +352,22 @@ void update( void* userdata = nullptr )
     queue->writeBuffer( *mvpBuffer, mvpMatrix );
 
     // Update the lights.
-    pointLights.resize( 4 );
+    pointLights.resize( 5 );
 
     glm::vec4 lightPositions[] = {
-        { -48.426f, 13.654f, -21.662f, 1.0f },
-        { 62.18f, 14.36f, -21.44f, 1.0f },
-        {-48.931f, 14.376f, 14.28f, 1.0f},
-        {61.52f, 13.86f, 14.28f, 1.0f},
+        { 48.426f, 13.654f, -21.662f, 1.0f },
+        { 48.931f, 14.376f, 14.28f, 1.0f },
+        { -62.18f, 14.36f, -21.44f, 1.0f },
+        { -61.52f, 13.86f, 14.28f, 1.0f},
+        { 0.0f, 25.0f, 0.0f, 1.0f},
+    };
+
+    glm::vec4 lightColors[] = {
+        {1, 0, 0, 1},
+        {0, 1, 0, 1},
+        {0, 0, 1, 1},
+        {0, 1, 1, 1},
+        {1, 1, 1, 1}
     };
 
 
@@ -363,12 +377,20 @@ void update( void* userdata = nullptr )
 
         p.positionWS = lightPositions[i];
         p.positionVS = viewMatrix * p.positionWS;
-        p.color      = { 1, 1, 1, 1 };
-        p.ambient    = 0.001f;
+        p.color      = lightColors[i];
+        p.ambient    = 0.01f;
         p.constantAttenuation = 1.0f;
-        p.linearAttenuation   = 0.1f;
+        p.linearAttenuation   = 0.01f;
         p.quadraticAttenuation = 0.0f;
     }
+
+    {
+        // Animate the last light.
+        auto& p = pointLights[4];
+        p.positionWS.x = glm::sin( static_cast<float>( timer.totalSeconds() ) ) * 100.0f;
+        p.positionVS   = viewMatrix * p.positionWS;
+    }
+
 
     render();
 }

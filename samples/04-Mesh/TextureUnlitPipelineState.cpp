@@ -30,9 +30,10 @@ TextureUnlitPipelineState::TextureUnlitPipelineState()
 
     // Setup the binding layout.
     // @group( 0 ) @binding( 0 ) var<uniform> mvp : mat4x4f;
-    // @group( 0 ) @binding( 1 ) var          albedoTexture : texture_2d<f32>;
-    // @group( 0 ) @binding( 2 ) var          linearRepeatSampler : sampler;
-    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[3] {};
+    // @group( 0 ) @binding( 1 ) var<uniform> color : vec4f;
+    // @group( 0 ) @binding( 2 ) var          albedoTexture : texture_2d<f32>;
+    // @group( 0 ) @binding( 3 ) var          linearRepeatSampler : sampler;
+    WGPUBindGroupLayoutEntry               bindGroupLayoutEntries[4] {};
     bindGroupLayoutEntries[0].binding               = 0;
     bindGroupLayoutEntries[0].visibility            = WGPUShaderStage_Vertex;
     bindGroupLayoutEntries[0].buffer.type           = WGPUBufferBindingType_Uniform;
@@ -40,12 +41,17 @@ TextureUnlitPipelineState::TextureUnlitPipelineState()
 
     bindGroupLayoutEntries[1].binding               = 1;
     bindGroupLayoutEntries[1].visibility            = WGPUShaderStage_Fragment;
-    bindGroupLayoutEntries[1].texture.sampleType    = WGPUTextureSampleType_Float;
-    bindGroupLayoutEntries[1].texture.viewDimension = WGPUTextureViewDimension_2D;
+    bindGroupLayoutEntries[1].buffer.type           = WGPUBufferBindingType_Uniform;
+    bindGroupLayoutEntries[1].buffer.minBindingSize = sizeof( glm::vec4 );
 
-    bindGroupLayoutEntries[2].binding      = 2;
-    bindGroupLayoutEntries[2].visibility   = WGPUShaderStage_Fragment;
-    bindGroupLayoutEntries[2].sampler.type = WGPUSamplerBindingType_Filtering;
+    bindGroupLayoutEntries[2].binding               = 2;
+    bindGroupLayoutEntries[2].visibility            = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[2].texture.sampleType    = WGPUTextureSampleType_Float;
+    bindGroupLayoutEntries[2].texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    bindGroupLayoutEntries[3].binding      = 3;
+    bindGroupLayoutEntries[3].visibility   = WGPUShaderStage_Fragment;
+    bindGroupLayoutEntries[3].sampler.type = WGPUSamplerBindingType_Filtering;
 
     // Setup the binding group.
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor {};

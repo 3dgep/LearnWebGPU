@@ -19,8 +19,9 @@ struct FragmentIn
 
 // Model View Projection matrix.
 @group(0) @binding(0) var<uniform> mvp : mat4x4f;
-@group(0) @binding(1) var albedoTexture : texture_2d<f32>;
-@group(0) @binding(2) var linearRepeatSampler : sampler;
+@group(0) @binding(1) var<uniform> color : vec4f;
+@group(0) @binding(2) var albedoTexture : texture_2d<f32>;
+@group(0) @binding(3) var linearRepeatSampler : sampler;
 
 @vertex
 fn vs_main(in: VertexIn) -> VertexOut
@@ -33,6 +34,6 @@ fn vs_main(in: VertexIn) -> VertexOut
 
 @fragment
 fn fs_main(in: FragmentIn) -> @location(0) vec4f {
-    return textureSample(albedoTexture, linearRepeatSampler, in.uv);
+    return textureSample(albedoTexture, linearRepeatSampler, in.uv) * color;
 }
 )"
