@@ -114,4 +114,5 @@ CommandBuffer::~CommandBuffer()
 void CommandBuffer::reset()
 {
     uniformUploadBuffer->reset();
+    storageUploadBuffer->reset();
 }

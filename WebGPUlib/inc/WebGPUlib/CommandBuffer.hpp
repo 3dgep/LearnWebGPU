@@ -71,7 +71,7 @@ void CommandBuffer::bindDynamicUniformBuffer( uint32_t groupIndex, uint32_t bind
 template<typename T>
 void CommandBuffer::bindDynamicStorageBuffer( uint32_t groupIndex, uint32_t binding, const std::vector<T>& data )
 {
-    bindDynamicStorageBuffer( groupIndex, binding, &data, data.size(), sizeof( T ) );
+    bindDynamicStorageBuffer( groupIndex, binding, data.data(), data.size(), sizeof( T ) );
 }
 
 }  // namespace WebGPUlib
