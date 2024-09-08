@@ -29,13 +29,19 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
+#include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
+
 #include <sdl2webgpu.h>
 #include <stb_image.h>
 
 #include <cassert>
 #include <filesystem>
 #include <iostream>
+
+constexpr float _PI     = 3.141592654f;
+constexpr float _2PI    = 6.283185307f;
+constexpr float _PIDIV2 = 1.570796327f;
 
 using namespace WebGPUlib;
 namespace fs = std::filesystem;
@@ -431,6 +437,75 @@ std::shared_ptr<Mesh> Device::createCube( float size, bool _reverseWinding ) con
     return std::make_shared<Mesh>( vertexBuffer, indexBuffer );
 }
 
+std::shared_ptr<Mesh> Device::createSphere( float radius, uint32_t tessellation, bool _reverseWinding )
+{
+    if ( tessellation < 3 )
+        throw std::out_of_range( "tessellation parameter out of range" );
+
+    std::vector<VertexPositionNormalTangentBitangentTexture> vertices;
+    std::vector<uint16_t>                                    indices;
+
+    size_t verticalSegments   = tessellation;
+    size_t horizontalSegments = static_cast<size_t>( tessellation ) * 2;
+
+    // Create rings of vertices at progressively higher latitudes.
+    for ( size_t i = 0; i <= verticalSegments; i++ )
+    {
+        float v = 1.0f - static_cast<float>( i ) / static_cast<float>( verticalSegments );
+
+        float latitude = ( static_cast<float>( i ) * _PI / static_cast<float>( verticalSegments ) ) - _PIDIV2;
+        float dy       = glm::sin( latitude );
+        float dxz      = glm::cos( latitude );
+
+        // Create a single ring of vertices at this latitude.
+        for ( size_t j = 0; j <= horizontalSegments; j++ )
+        {
+            float u = static_cast<float>( j ) / static_cast<float>( horizontalSegments );
+
+            float longitude = static_cast<float>( j ) * _2PI / static_cast<float>( horizontalSegments );
+            float dx        = glm::sin( longitude );
+            float dz        = glm::cos( longitude );
+
+            dx *= dxz;
+            dz *= dxz;
+
+            glm::vec3 normal { dx, dy, dz };
+            glm::vec3 textureCoordinate { u, v, 0 };
+            glm::vec3 position = normal * radius;
+
+            vertices.emplace_back( position, normal, textureCoordinate );
+        }
+    }
+
+    // Fill the index buffer with triangles joining each pair of latitude rings.
+    size_t stride = horizontalSegments + 1;
+
+    for ( size_t i = 0; i < verticalSegments; i++ )
+    {
+        for ( size_t j = 0; j <= horizontalSegments; j++ )
+        {
+            size_t nextI = i + 1;
+            size_t nextJ = ( j + 1 ) % stride;
+
+            indices.push_back( i * stride + nextJ );
+            indices.push_back( nextI * stride + j );
+            indices.push_back( i * stride + j );
+
+            indices.push_back( nextI * stride + nextJ );
+            indices.push_back( nextI * stride + j );
+            indices.push_back( i * stride + nextJ );
+        }
+    }
+
+    if ( _reverseWinding )
+        reverseWinding( vertices, indices );
+
+    auto vertexBuffer = createVertexBuffer( vertices );
+    auto indexBuffer  = createIndexBuffer( indices );
+
+    return std::make_shared<Mesh>( vertexBuffer, indexBuffer );
+}
+
 std::shared_ptr<Texture> Device::createTexture( const WGPUTextureDescriptor& textureDescriptor )
 {
     WGPUTexture texture = wgpuDeviceCreateTexture( device, &textureDescriptor );
@@ -810,7 +885,7 @@ std::shared_ptr<Scene> Device::loadScene( const std::filesystem::path& filePath 
                   aiMaterial->GetTexture( aiTextureType_HEIGHT, 0, &texturePath ) == aiReturn_SUCCESS )
         {
             auto texture = loadTexture( parentPath / texturePath.C_Str() );
-            material->setTexture( TextureSlot::Normal, texture ); // Assume height maps are actually normal maps.
+            material->setTexture( TextureSlot::Normal, texture );  // Assume height maps are actually normal maps.
         }
 
         materials.emplace_back( std::move( material ) );

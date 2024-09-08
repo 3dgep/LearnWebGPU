@@ -44,6 +44,7 @@ public:
     std::shared_ptr<Surface> getSurface() const;
 
     std::shared_ptr<Mesh> createCube( float size = 1.0f, bool reverseWinding = false ) const;
+    std::shared_ptr<Mesh> createSphere( float radius = 0.5f, uint32_t tessellation = 16, bool reverseWinding = false );
 
     std::shared_ptr<Texture> createTexture( const WGPUTextureDescriptor& textureDescriptor );
 

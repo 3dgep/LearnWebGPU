@@ -52,6 +52,7 @@ std::vector<SpotLight>  spotLights;
 bool isRunning = true;
 
 std::shared_ptr<Mesh>                      cubeMesh;
+std::shared_ptr<Mesh>                      sphereMesh;
 std::shared_ptr<UniformBuffer>             mvpBuffer;
 std::shared_ptr<Texture>                   colorTexture;
 std::shared_ptr<TextureView>               colorTextureView;
@@ -75,7 +76,7 @@ void onResize( uint32_t width, uint32_t height )
     WGPUTextureFormat colorTextureFormat = surface->getSurfaceFormat();
 
     WGPUTextureDescriptor colorTextureDescriptor {};
-    colorTextureDescriptor.label         = "MSAA Color Texture";
+    colorTextureDescriptor.label         = "MSAA color Texture";
     colorTextureDescriptor.usage         = WGPUTextureUsage_RenderAttachment;
     colorTextureDescriptor.dimension     = WGPUTextureDimension_2D;
     colorTextureDescriptor.size          = { width, height, 1 };
@@ -153,13 +154,11 @@ void init()
 
     albedoTexture = Device::get().loadTexture( "assets/textures/webgpu.png" );
     cubeMesh      = Device::get().createCube( 2.0f );
+    sphereMesh    = Device::get().createSphere( 10.0f );
     scene         = Device::get().loadScene( "assets/crytek-sponza/sponza_nobanner.obj" );
 
     // Scale the root node
-    scene->getRootNode()->setLocalTransform( glm::scale( glm::mat4 { 1 }, glm::vec3 { 1.0f / 100.0f } ) );
-
-    pointLights.emplace_back();
-    spotLights.emplace_back();
+    scene->getRootNode()->setLocalTransform( glm::scale( glm::mat4 { 1 }, glm::vec3 { 1.0f / 10.0f } ) );
 
     // Setup the texture sampler.
     WGPUSamplerDescriptor linearRepeatSamplerDesc {};
@@ -247,10 +246,24 @@ void render()
 
     commandBuffer->draw( *cubeMesh );
 
+    glm::mat4 viewMatrix = camera.getViewMatrix();
+    glm::mat4 projectionMatrix = camera.getProjectionMatrix();
+
+    // Draw a sphere for each point light.
+    for (auto& p : pointLights)
+    {
+        
+        glm::mat4 worldMatrix = glm::translate( glm::mat4 { 1.0f }, glm::vec3 { p.positionWS } );
+        glm::mat4 mvp         = projectionMatrix * viewMatrix * worldMatrix;
+
+        commandBuffer->bindDynamicUniformBuffer( 0, 0, mvp );
+        commandBuffer->draw( *sphereMesh );
+    }
+
     commandBuffer->setGraphicsPipeline( *textureLitPipelineState );
 
     commandBuffer->bindDynamicStorageBuffer( 0, 11, pointLights );
-    commandBuffer->bindDynamicStorageBuffer( 0, 12, spotLights );
+    //commandBuffer->bindDynamicStorageBuffer( 0, 12, spotLights );
 
     // Render the scene.
     renderNode( commandBuffer, scene->getRootNode() );
@@ -320,7 +333,7 @@ void update( void* userdata = nullptr )
         frames = 0;
     }
 
-    // Update the model-view-projection matrix.
+    // Update the model-view-projection matrix for the cube.
     float     angle            = static_cast<float>( timer.totalSeconds() * 90.0 );
     glm::vec3 axis             = glm::vec3( 1.0f, 1.0f, 1.0f );
     glm::mat4 t                = glm::translate( glm::mat4 { 1 }, glm::vec3 { 0, 2, 0 } );
@@ -332,6 +345,30 @@ void update( void* userdata = nullptr )
 
     const auto queue = Device::get().getQueue();
     queue->writeBuffer( *mvpBuffer, mvpMatrix );
+
+    // Update the lights.
+    pointLights.resize( 4 );
+
+    glm::vec4 lightPositions[] = {
+        { -48.426f, 13.654f, -21.662f, 1.0f },
+        { 62.18f, 14.36f, -21.44f, 1.0f },
+        {-48.931f, 14.376f, 14.28f, 1.0f},
+        {61.52f, 13.86f, 14.28f, 1.0f},
+    };
+
+
+    for (int i = 0; i < pointLights.size(); ++i)
+    {
+        auto& p = pointLights[i];
+
+        p.positionWS = lightPositions[i];
+        p.positionVS = viewMatrix * p.positionWS;
+        p.color      = { 1, 1, 1, 1 };
+        p.ambient    = 0.001f;
+        p.constantAttenuation = 1.0f;
+        p.linearAttenuation   = 0.1f;
+        p.quadraticAttenuation = 0.0f;
+    }
 
     render();
 }

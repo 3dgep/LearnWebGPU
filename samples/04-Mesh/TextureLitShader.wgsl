@@ -129,7 +129,7 @@ struct LightResult
 
 // Lights
 @group(0) @binding(11) var<storage> pointLights : array<PointLight>;
-@group(0) @binding(12) var<storage> spotLights : array<SpotLight>;
+// @group(0) @binding(12) var<storage> spotLights : array<SpotLight>;
 
 fn toMat3x3( m : mat4x4f ) -> mat3x3f
 {
@@ -236,6 +236,7 @@ fn DoLighting( P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
     }
 
     // Iterate spot lights
+    /*
     for( var i : u32 = 0; i < arrayLength(&spotLights); i++ )
     {
         let result = DoSpotLight( spotLights[i], V, P, N, specularPower );
@@ -244,6 +245,7 @@ fn DoLighting( P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
         totalResult.specular += result.specular;
         totalResult.ambient += result.ambient;
     }
+    */
 
     totalResult.diffuse = saturate(totalResult.diffuse);
     totalResult.specular = saturate(totalResult.specular);
@@ -356,8 +358,6 @@ fn fs_main(in: FragmentIn) -> @location(0) vec4f {
     ambient *= lighting.ambient;
     diffuse *= lighting.diffuse;
     specular *= lighting.specular;
-
-    return pointLights[0].color;
 
     return vec4f( (emissive + ambient + diffuse + specular).rgb, opacity * material.opacity);
 }

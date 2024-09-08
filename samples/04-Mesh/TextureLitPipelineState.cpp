@@ -32,7 +32,7 @@ TextureLitPipelineState::TextureLitPipelineState()
     WGPUShaderModule shaderModule      = wgpuDeviceCreateShaderModule( device, &shaderModuleDescriptor );
 
     // Setup the binding layout.
-    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[13] {};
+    WGPUBindGroupLayoutEntry bindGroupLayoutEntries[12] {};
 
     // @group( 0 ) @binding( 0 ) var<uniform> matrices : Matrices;
     bindGroupLayoutEntries[0].binding               = 0;
@@ -74,10 +74,10 @@ TextureLitPipelineState::TextureLitPipelineState()
     bindGroupLayoutEntries[11].buffer.minBindingSize = 0; //sizeof(PointLight);
 
     // @group( 0 ) @binding( 12 ) var<storage> spotLights : array<SpotLight>;
-    bindGroupLayoutEntries[12].binding               = 12;
-    bindGroupLayoutEntries[12].visibility            = WGPUShaderStage_Fragment;
-    bindGroupLayoutEntries[12].buffer.type           = WGPUBufferBindingType_ReadOnlyStorage;
-    bindGroupLayoutEntries[12].buffer.minBindingSize = 0; // sizeof(SpotLight);
+    //bindGroupLayoutEntries[12].binding               = 12;
+    //bindGroupLayoutEntries[12].visibility            = WGPUShaderStage_Fragment;
+    //bindGroupLayoutEntries[12].buffer.type           = WGPUBufferBindingType_ReadOnlyStorage;
+    //bindGroupLayoutEntries[12].buffer.minBindingSize = 0; // sizeof(SpotLight);
 
     // Setup the binding group.
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor {};
