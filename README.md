@@ -1,8 +1,20 @@
-# Learn WebGPU
+# Learn WebGPU with C++
 
-> Source: [https://eliemichel.github.io/LearnWebGPU/index.html](https://eliemichel.github.io/LearnWebGPU/index.html)
+![WebGPU with C++](WebGPU-with-C-1024x562.png)
 
-This project is intended to be used as a learning resource on using WebGPU with C++.
+## Download the Repo
+
+This repository uses submodules for a few of the external dependencies. Make sure you use `--recurse-submodules` when cloning the repo:
+
+```sh
+git clone --recurse-submodules https://github.com/3dgep/LearnWebGPU.git
+```
+
+If you cloned the repo but forgot to initialize the submodules, you can do that with the following command:
+
+```sh
+git submodule update --init
+```
 
 ## Installing Dependencies
 
@@ -12,11 +24,25 @@ Download the latest version of CMake from [https://cmake.org/download](https://c
 
 ### Python
 
+Make sure you have the latest version of Python installed.
 
+Check which version of Python you currently have:
+
+```sh
+python --version
+```
 
 ### Ninja Build
 
 The Ninja build system is used to build the browser version of our application.
+
+Check which version of Ninja you currently have:
+
+```sh
+ninja --version
+```
+
+If you don't have Ninja installed, you can use one of the options below to install it.
 
 #### Windows
 
@@ -42,12 +68,21 @@ See [Pre built Ninja packages](https://github.com/ninja-build/ninja/wiki/Pre-bui
 
 ### Visual Studio 2022
 
-> TODO: Figure out how to get Emscripten debugging working in Visual Studio.
+Make sure you install the latest version of Visual Studio. Even if you don't intend to use the Visual Studio IDE, you need to have the C++ toolchain installed for other IDEs (like Visual Studio Code) to build the C++ projects.
+
+[https://visualstudio.microsoft.com/](https://visualstudio.microsoft.com/)
+
+> **Note**: I haven't figured out how to build & debug the application with Visual Studio when using the Emscripten toolchain. Visual Studio Code (with the CMake plugin) is much better for this.
 
 ### Visual Studio Code
 
-Visual Studio Code is better to use for building and debugging the browser builds.
+Visual Studio Code is better for building and debugging the Emscripten builds.
+
 There are several launch & tasks configurations to simplify debugging the application in the browser.
+
+Visual Studio code is preferred when creating web builds with Emscripten.
+
+[https://visualstudio.microsoft.com/](https://visualstudio.microsoft.com/)
 
 #### Recommended Visual Studio Code Extensions
 
@@ -67,11 +102,61 @@ Run the following commands to install and activate the version of Emscripten tha
 ```sh
 git submodule update --init tools/emsdk
 cd tools/emsdk
-.\emsdk install 3.1.64
-.\emsdk activate --permanent 3.1.64
+.\emsdk install 3.1.65
+.\emsdk activate --permanent 3.1.65
+```
+
+## Configure
+
+This project uses CMake for project configuration. There are build presets for Visual Studio 2022 (v17) and Emscripten.
+
+### Configure Visual Studio 2022
+
+```sh
+cmake --preset vs17
+```
+
+### Configure Emscripten
+
+```sh
+cmake --preset Emscripten
 ```
 
 ## Building
+
+After the project has been compiled, you can open the generated solution file in Visual Studio, or use CMake to build the project.
+
+### Building with Visual Studio
+
+```sh
+cmake --build --preset x64-Debug
+```
+
+### Building with Emscripten
+
+```sh
+cmake --build --preset Emscripten-Debug
+```
+
+## Running
+
+If the build was successful, you should be able to run one of the samples.
+
+```sh
+.\out\build\vs17\samples\02-Cube\Debug\02-Cube.exe
+```
+
+Or run in the browser, start a local web server:
+
+```sh
+python -m http.server
+```
+
+And open the following page in Chrome (or Edge):
+
+[http://localhost:8000/out/build/emscripten/samples/02-Cube/Debug/02-Cube.html](http://localhost:8000/out/build/emscripten/samples/02-Cube/Debug/02-Cube.html)
+
+![Cube Sample](CubeSample.png)
 
 ## Known Issues
 

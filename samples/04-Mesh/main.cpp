@@ -352,21 +352,21 @@ void update( void* userdata = nullptr )
     queue->writeBuffer( *mvpBuffer, mvpMatrix );
 
     // Update the lights.
-    pointLights.resize( 1 );
+    pointLights.resize( 5 );
 
     glm::vec4 lightPositions[] = {
-        //{ 48.426f, 13.654f, -21.662f, 1.0f },
-        //{ 48.931f, 14.376f, 14.28f, 1.0f },
-        //{ -62.18f, 14.36f, -21.44f, 1.0f },
-        //{ -61.52f, 13.86f, 14.28f, 1.0f},
+        { 48.426f, 13.654f, -21.662f, 1.0f },
+        { 48.931f, 14.376f, 14.28f, 1.0f },
+        { -62.18f, 14.36f, -21.44f, 1.0f },
+        { -61.52f, 13.86f, 14.28f, 1.0f},
         { 0.0f, 25.0f, 0.0f, 1.0f},
     };
 
     glm::vec4 lightColors[] = {
-        //{1, 0, 0, 1},
-        //{0, 1, 0, 1},
-        //{0, 0, 1, 1},
-        //{0, 1, 1, 1},
+        {1, 0, 0, 1},
+        {0, 1, 0, 1},
+        {0, 0, 1, 1},
+        {0, 1, 1, 1},
         {1, 1, 1, 1}
     };
 
@@ -386,7 +386,7 @@ void update( void* userdata = nullptr )
 
     {
         // Animate the last light.
-        auto& p = pointLights[0];
+        auto& p = pointLights[4];
         p.positionWS.x = glm::sin( static_cast<float>( timer.totalSeconds() ) ) * 100.0f;
         p.positionVS   = viewMatrix * p.positionWS;
     }
