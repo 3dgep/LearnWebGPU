@@ -163,3 +163,8 @@ And open the following page in Chrome (or Edge):
 * When using the Dawn WebGPU backend, the `fetch_dawn_dependencies.py` script can fail in cmake-gui with the error `OSError: [WinError 6] The handle is invalid`.
   * Solution: run cmake on the command line:
     * `cmake --preset vs17 -D WEBGPU_BACKEND=DAWN`
+* Compiling with Emscripten can sometimes fail with compilation errors if the build toolchain is not activated or when reconfiguring the CMake project.
+  * Solution:
+    * Make sure you have activated the Emscripten build toolchain using the command `.\emsdk activate --permanent 3.1.65` (while in the `tools/emsdk` folder).
+    * Delete the `out/emscripten` folder and reconfigure & rebuild the project.
+
