@@ -390,8 +390,6 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
     viewDescriptor.aspect          = WGPUTextureAspect_All;
     WGPUTextureView targetView     = wgpuTextureCreateView( surfaceTexture.texture, &viewDescriptor );
 
-    wgpuTextureRelease( surfaceTexture.texture );
-
     return targetView;
 }
 

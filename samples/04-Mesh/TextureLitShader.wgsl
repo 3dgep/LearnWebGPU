@@ -153,13 +153,13 @@ fn vs_main(in: VertexIn) -> VertexOut
 
 fn DoDiffuse( N : vec3f, L : vec3f ) -> f32
 {
-    return max( 0, dot(N, L) );
+    return max( 0.0f, dot(N, L) );
 }
 
 fn DoSpecular( V : vec3f, N : vec3f, L : vec3f, specularPower : f32 ) -> f32
 {
     let R = normalize( reflect(-L, N) );
-    let RdotV = max(0, dot( R, V ) );
+    let RdotV = max(0.0f, dot( R, V ) );
 
     return pow( RdotV, specularPower );
 }
@@ -172,7 +172,7 @@ fn DoAttenuation( c : f32, l : f32, q : f32, d : f32 ) -> f32
 fn DoSpotCone( spotDir : vec3f, L : vec3f, spotAngle : f32 ) -> f32
 {
     let minCos = cos( spotAngle );
-    let maxCos = (minCos + 1.0) / 2.0;
+    let maxCos = (minCos + 1.0f) / 2.0f;
     let cosAngle = dot( spotDir, -L);
 
     return smoothstep( minCos, maxCos, cosAngle );
@@ -256,7 +256,7 @@ fn DoLighting( P : vec3f, N : vec3f, specularPower : f32 ) -> LightResult
 
 fn ExpandNormal( n : vec3f ) -> vec3f
 {
-    return n * 2.0 - 1.0;
+    return n * 2.0f - 1.0f;
 }
 
 fn DoNormalMapping( TBN : mat3x3f, tex : texture_2d<f32>, uv : vec2f ) -> vec3f
