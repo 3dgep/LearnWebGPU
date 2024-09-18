@@ -38,6 +38,14 @@ std::map<WGPUQueueWorkDoneStatus, std::string> queueWorkDoneStatusNames = {
     { WGPUQueueWorkDoneStatus_DeviceLost, "DeviceLost" },
 };
 
+std::map<WGPUBackendType, std::string> backendTypes = {
+    { WGPUBackendType_Undefined, "Undefined" }, { WGPUBackendType_Null, "Null" },
+    { WGPUBackendType_WebGPU, "WebGPU" },       { WGPUBackendType_D3D11, "D3D11" },
+    { WGPUBackendType_D3D12, "D3D12" },         { WGPUBackendType_Metal, "Metal" },
+    { WGPUBackendType_Vulkan, "Vulkan" },       { WGPUBackendType_OpenGL, "OpenGL" },
+    { WGPUBackendType_OpenGLES, "OpenGLES" },
+};
+
 constexpr int WINDOW_WIDTH  = 1280;
 constexpr int WINDOW_HEIGHT = 720;
 const char*   WINDOW_TITLE  = "Clear Screen";
@@ -106,11 +114,13 @@ bool getAdapterLimits( WGPUAdapter adapter, WGPUSupportedLimits& supportedLimits
 void inspectAdapter( WGPUAdapter adapter )
 {
     // List the adapter properties.
+    // Note: Deprecated, use WGPUAdapterInfo instead (when it's supported on all backends).
     WGPUAdapterProperties adapterProperties {};
     wgpuAdapterGetProperties( adapter, &adapterProperties );
 
-    std::cout << "Adapter name: " << adapterProperties.name << std::endl;
+    std::cout << "Adapter name:   " << adapterProperties.name << std::endl;
     std::cout << "Adapter vendor: " << adapterProperties.vendorName << std::endl;
+    std::cout << "Backend type:   " << backendTypes[adapterProperties.backendType] << std::endl;
 
     // List adapter limits.
     WGPUSupportedLimits supportedLimits {};
@@ -130,25 +140,26 @@ void inspectAdapter( WGPUAdapter adapter )
         std::cout << "  maxDynamicStorageBuffersPerPipelineLayout: " << limits.maxDynamicStorageBuffersPerPipelineLayout
                   << std::endl;
         std::cout << "  maxSampledTexturesPerShaderStage: " << limits.maxSampledTexturesPerShaderStage << std::endl;
-        std::cout << "  maxSamplersPerShaderStage: " << limits.maxSamplersPerShaderStage << std::endl;
-        std::cout << "  maxStorageBuffersPerShaderStage: " << limits.maxStorageBuffersPerShaderStage << std::endl;
+        std::cout << "  maxSamplersPerShaderStage:        " << limits.maxSamplersPerShaderStage << std::endl;
+        std::cout << "  maxStorageBuffersPerShaderStage:  " << limits.maxStorageBuffersPerShaderStage << std::endl;
         std::cout << "  maxStorageTexturesPerShaderStage: " << limits.maxStorageTexturesPerShaderStage << std::endl;
-        std::cout << "  maxUniformBuffersPerShaderStage: " << limits.maxUniformBuffersPerShaderStage << std::endl;
-        std::cout << "  maxUniformBufferBindingSize: " << limits.maxUniformBufferBindingSize << std::endl;
-        std::cout << "  maxStorageBufferBindingSize: " << limits.maxStorageBufferBindingSize << std::endl;
-        std::cout << "  minUniformBufferOffsetAlignment: " << limits.minUniformBufferOffsetAlignment << std::endl;
-        std::cout << "  minStorageBufferOffsetAlignment: " << limits.minStorageBufferOffsetAlignment << std::endl;
-        std::cout << "  maxVertexBuffers: " << limits.maxVertexBuffers << std::endl;
-        std::cout << "  maxBufferSize: " << limits.maxBufferSize << std::endl;
-        std::cout << "  maxVertexAttributes: " << limits.maxVertexAttributes << std::endl;
-        std::cout << "  maxVertexBufferArrayStride: " << limits.maxVertexBufferArrayStride << std::endl;
-        std::cout << "  maxInterStageShaderComponents: " << limits.maxInterStageShaderComponents << std::endl;
-        std::cout << "  maxInterStageShaderVariables: " << limits.maxInterStageShaderVariables << std::endl;
-        std::cout << "  maxComputeWorkgroupStorageSize: " << limits.maxComputeWorkgroupStorageSize << std::endl;
-        std::cout << "  maxComputeInvocationsPerWorkgroup: " << limits.maxComputeInvocationsPerWorkgroup << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeX: " << limits.maxComputeWorkgroupSizeX << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeY: " << limits.maxComputeWorkgroupSizeY << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeZ: " << limits.maxComputeWorkgroupSizeZ << std::endl;
+        std::cout << "  maxUniformBuffersPerShaderStage:  " << limits.maxUniformBuffersPerShaderStage << std::endl;
+        std::cout << "  maxUniformBufferBindingSize:      " << limits.maxUniformBufferBindingSize << std::endl;
+        std::cout << "  maxStorageBufferBindingSize:      " << limits.maxStorageBufferBindingSize << std::endl;
+        std::cout << "  minUniformBufferOffsetAlignment:  " << limits.minUniformBufferOffsetAlignment << std::endl;
+        std::cout << "  minStorageBufferOffsetAlignment:  " << limits.minStorageBufferOffsetAlignment << std::endl;
+        std::cout << "  maxVertexBuffers:                 " << limits.maxVertexBuffers << std::endl;
+        std::cout << "  maxBufferSize:                    " << limits.maxBufferSize << std::endl;
+        std::cout << "  maxVertexAttributes:              " << limits.maxVertexAttributes << std::endl;
+        std::cout << "  maxVertexBufferArrayStride:       " << limits.maxVertexBufferArrayStride << std::endl;
+        std::cout << "  maxInterStageShaderComponents:    " << limits.maxInterStageShaderComponents << std::endl;
+        std::cout << "  maxInterStageShaderVariables:     " << limits.maxInterStageShaderVariables << std::endl;
+        std::cout << "  maxColorAttachments:              " << limits.maxColorAttachments << std::endl;
+        std::cout << "  maxComputeWorkgroupStorageSize:   " << limits.maxComputeWorkgroupStorageSize << std::endl;
+        std::cout << "  maxComputeInvocationsPerWorkgroup:" << limits.maxComputeInvocationsPerWorkgroup << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeX:         " << limits.maxComputeWorkgroupSizeX << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeY:         " << limits.maxComputeWorkgroupSizeY << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeZ:         " << limits.maxComputeWorkgroupSizeZ << std::endl;
         std::cout << "  maxComputeWorkgroupsPerDimension: " << limits.maxComputeWorkgroupsPerDimension << std::endl;
     }
 
@@ -308,9 +319,6 @@ void init()
     deviceDescriptor.deviceLostCallback   = onDeviceLost;
     device                                = requestDevice( adapter, &deviceDescriptor );
 
-    // We are done with the adapter, it is safe to release it.
-    wgpuAdapterRelease( adapter );
-
     if ( !device )
     {
         std::cerr << "Failed to create device." << std::endl;
@@ -331,16 +339,45 @@ void init()
 
     wgpuQueueOnSubmittedWorkDone( queue, onQueueWorkDone, nullptr );
 
+    WGPUSurfaceCapabilities surfaceCaps {};
+    wgpuSurfaceGetCapabilities( surface, adapter, &surfaceCaps );
+
+    WGPUTextureFormat preferredFormat = surfaceCaps.formats[0];
+    bool              supportsMailbox = false;
+
+    for ( size_t i = 0; i < surfaceCaps.presentModeCount; ++i )
+    {
+        if ( surfaceCaps.presentModes[i] == WGPUPresentMode_Mailbox )
+            supportsMailbox = true;
+    }
+
+    // Cleanup allocations for surface capabilities.
+    wgpuSurfaceCapabilitiesFreeMembers( surfaceCaps );
+
     // Configure the render surface.
     surfaceConfiguration.device          = device;
-    surfaceConfiguration.format          = wgpuSurfaceGetPreferredFormat( surface, adapter );
+    surfaceConfiguration.format          = preferredFormat;
     surfaceConfiguration.usage           = WGPUTextureUsage_RenderAttachment;
     surfaceConfiguration.viewFormatCount = 0;
     surfaceConfiguration.viewFormats     = nullptr;
     surfaceConfiguration.alphaMode       = WGPUCompositeAlphaMode_Auto;
     surfaceConfiguration.width           = WINDOW_WIDTH;
     surfaceConfiguration.height          = WINDOW_HEIGHT;
-    surfaceConfiguration.presentMode     = WGPUPresentMode_Fifo;  // This must be Fifo on Emscripten.
+    surfaceConfiguration.presentMode     = supportsMailbox ? WGPUPresentMode_Mailbox : WGPUPresentMode_Fifo;
+    wgpuSurfaceConfigure( surface, &surfaceConfiguration );
+
+    // We are done with the adapter, it is safe to release it.
+    wgpuAdapterRelease( adapter );
+}
+
+void resize()
+{
+    int width, height;
+    SDL_GetWindowSize( window, &width, &height );
+
+    surfaceConfiguration.width  = std::max( width, 1 );
+    surfaceConfiguration.height = std::max( height, 1 );
+
     wgpuSurfaceConfigure( surface, &surfaceConfiguration );
 }
 
@@ -349,6 +386,16 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture( s, &surfaceTexture );
 
+    if ( surfaceTexture.suboptimal )
+    {
+        if ( surfaceTexture.texture )
+            wgpuTextureRelease( surfaceTexture.texture );
+
+        resize();
+
+        return nullptr;
+    }
+    // Same as previous slide...
     switch ( surfaceTexture.status )
     {
     case WGPUSurfaceGetCurrentTextureStatus_Success:
@@ -362,15 +409,8 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
         if ( surfaceTexture.texture )
             wgpuTextureRelease( surfaceTexture.texture );
 
-        int width, height;
-        SDL_GetWindowSize( window, &width, &height );
-        if ( width > 0 && height > 0 )
-        {
-            surfaceConfiguration.width  = width;
-            surfaceConfiguration.height = height;
+        resize();
 
-            wgpuSurfaceConfigure( surface, &surfaceConfiguration );
-        }
         return nullptr;
     }
     default:
@@ -390,7 +430,7 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
     viewDescriptor.aspect          = WGPUTextureAspect_All;
     WGPUTextureView targetView     = wgpuTextureCreateView( surfaceTexture.texture, &viewDescriptor );
 
-     //wgpuTextureRelease( surfaceTexture.texture );
+    wgpuTextureRelease( surfaceTexture.texture );
 
     return targetView;
 }
@@ -439,6 +479,7 @@ void render()
     wgpuQueueOnSubmittedWorkDone( queue, onQueueWorkDone, nullptr );
     wgpuQueueSubmit( queue, 1, &commandBuffer );
 
+    // Cleanup
     wgpuCommandBufferRelease( commandBuffer );
     wgpuCommandEncoderRelease( encoder );
     wgpuTextureViewRelease( view );
