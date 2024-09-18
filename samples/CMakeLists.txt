@@ -6,6 +6,7 @@ set( SAMPLES
 	02-Cube
 	03-Texture
 	04-Mesh
+	05-Masterclass
 )
 
 foreach( SAMPLE ${SAMPLES} )
@@ -19,5 +20,5 @@ set_target_properties( ${SAMPLES}
 
 # Set the startup project.
 set_directory_properties( PROPERTIES 
-	VS_STARTUP_PROJECT 03-Texture
+	VS_STARTUP_PROJECT 04-Mesh
 )
