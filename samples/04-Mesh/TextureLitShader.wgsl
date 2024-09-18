@@ -153,13 +153,13 @@ fn vs_main(in: VertexIn) -> VertexOut
 
 fn DoDiffuse( N : vec3f, L : vec3f ) -> f32
 {
-    return max( 0, dot(N, L) );
+    return max( 0.0, dot(N, L) );
 }
 
 fn DoSpecular( V : vec3f, N : vec3f, L : vec3f, specularPower : f32 ) -> f32
 {
     let R = normalize( reflect(-L, N) );
-    let RdotV = max(0, dot( R, V ) );
+    let RdotV = max(0.0, dot( R, V ) );
 
     return pow( RdotV, specularPower );
 }

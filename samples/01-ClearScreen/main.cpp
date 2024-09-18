@@ -93,9 +93,10 @@ WGPUAdapter requestAdapter( const WGPURequestAdapterOptions* options )
     return userData.adapter;
 }
 
-bool getGetAdapterLimits( WGPUAdapter adapter, WGPUSupportedLimits& supportedLimits )
+bool getAdapterLimits( WGPUAdapter adapter, WGPUSupportedLimits& supportedLimits )
 {
 #ifdef WEBGPU_BACKEND_DAWN
+    // Dawn returns a status flag instead of WGPUBool.
     return wgpuAdapterGetLimits( adapter, &supportedLimits ) == WGPUStatus_Success;
 #else
     return wgpuAdapterGetLimits( adapter, &supportedLimits );
@@ -113,7 +114,7 @@ void inspectAdapter( WGPUAdapter adapter )
 
     // List adapter limits.
     WGPUSupportedLimits supportedLimits {};
-    if ( getGetAdapterLimits( adapter, supportedLimits ) )
+    if ( getAdapterLimits( adapter, supportedLimits ) )
     {
         WGPULimits limits = supportedLimits.limits;
         std::cout << "Limits: " << std::endl;
@@ -285,9 +286,9 @@ void init()
     }
 
     // Request the adapter.
-    WGPURequestAdapterOptions requestAdapaterOptions {};
-    requestAdapaterOptions.compatibleSurface = surface;
-    WGPUAdapter adapter                      = requestAdapter( &requestAdapaterOptions );
+    WGPURequestAdapterOptions requestAdapterOptions {};
+    requestAdapterOptions.compatibleSurface = surface;
+    WGPUAdapter adapter                     = requestAdapter( &requestAdapterOptions );
 
     if ( !adapter )
     {
@@ -299,14 +300,13 @@ void init()
 
     // Create a minimal device with no special features and default limits.
     WGPUDeviceDescriptor deviceDescriptor {};
-    deviceDescriptor.label                    = "LearnWebGPU";  // You can use anything here.
-    deviceDescriptor.requiredFeatureCount     = 0;              // We don't require any extra features.
-    deviceDescriptor.requiredFeatures         = nullptr;
-    deviceDescriptor.requiredLimits           = nullptr;  // We don't require any specific limits.
-    deviceDescriptor.defaultQueue.nextInChain = nullptr;
-    deviceDescriptor.defaultQueue.label       = "Default Queue";  // You can use anything here.
-    deviceDescriptor.deviceLostCallback       = onDeviceLost;
-    device                                    = requestDevice( adapter, &deviceDescriptor );
+    deviceDescriptor.label                = "WebGPU with C++";  // You can use anything here.
+    deviceDescriptor.requiredFeatureCount = 0;                  // We don't require any extra features.
+    deviceDescriptor.requiredFeatures     = nullptr;
+    deviceDescriptor.requiredLimits       = nullptr;          // We don't require any specific limits.
+    deviceDescriptor.defaultQueue.label   = "Default Queue";  // You can use anything here.
+    deviceDescriptor.deviceLostCallback   = onDeviceLost;
+    device                                = requestDevice( adapter, &deviceDescriptor );
 
     // We are done with the adapter, it is safe to release it.
     wgpuAdapterRelease( adapter );
@@ -390,7 +390,7 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
     viewDescriptor.aspect          = WGPUTextureAspect_All;
     WGPUTextureView targetView     = wgpuTextureCreateView( surfaceTexture.texture, &viewDescriptor );
 
-    wgpuTextureRelease( surfaceTexture.texture );
+     //wgpuTextureRelease( surfaceTexture.texture );
 
     return targetView;
 }
