@@ -5,7 +5,13 @@ project(LearnWebGPU LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(TARGET_NAME 05-Masterclass)
 
-add_executable( ${TARGET_NAME} main.cpp )
+set( SRC
+	main.cpp
+	shader.wgsl
+)
+
+add_executable( ${TARGET_NAME} ${SRC} )
+
 target_link_libraries( ${TARGET_NAME}
 	PRIVATE SDL2::SDL2 webgpu sdl2webgpu
 )

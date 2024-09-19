@@ -23,13 +23,13 @@ struct FragmentIn
 fn vs_main(in: VertexIn) -> VertexOut
 {
     var out: VertexOut;
-    out.position =  mvp * vec4f(in.position, 1.0);
+    out.position =  mvp * vec4f(in.position, 1.0f);
     out.color = in.color;
     return out;
 }
 
 @fragment
 fn fs_main(in: FragmentIn) -> @location(0) vec4f {
-    return vec4f(in.color, 1.0);
+    return vec4f(in.color, 1.0f);
 }
 )"
