@@ -72,5 +72,12 @@
             "url": "http://localhost:3000/out/build/emscripten/samples/04-Mesh/Release/04-Mesh.html",
             "preLaunchTask": "StartServer"
         },
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "05-Masterclass - Chrome",
+            "url": "http://localhost:3000/out/build/emscripten/samples/05-Masterclass/Debug/05-Masterclass.html",
+            "preLaunchTask": "StartServer"
+        },
     ]
 }

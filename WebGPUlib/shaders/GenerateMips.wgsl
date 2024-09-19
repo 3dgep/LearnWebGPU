@@ -143,7 +143,7 @@ fn main( IN : ComputeShaderInput )
             // Use 2 bilinear samples to guarantee we don't undersample when downsizing by more than 2x
             // vertically.
             var uv = mip.texelSize * ( vec2f(IN.globalId.xy) + vec2f( 0.5f, 0.25f ) );
-            var offset = mip.texelSize * vec2f( 0.0, 0.5 );
+            var offset = mip.texelSize * vec2f( 0.0f, 0.5f );
 
             src1 = 0.5f * ( textureSampleLevel( srcMip, linearClampSampler, uv, f32(mip.srcMipLevel) ) +
                            textureSampleLevel( srcMip, linearClampSampler, uv + offset, f32(mip.srcMipLevel) ) );

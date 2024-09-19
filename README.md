@@ -24,7 +24,7 @@ Download the latest version of CMake from [https://cmake.org/download](https://c
 
 ### Python
 
-Make sure you have the latest version of Python installed.
+Make sure you have the latest version of Python installed: [https://www.python.org/downloads](https://www.python.org/downloads/).
 
 Check which version of Python you currently have:
 
@@ -119,12 +119,12 @@ cmake --preset vs17
 ### Configure Emscripten
 
 ```sh
-cmake --preset Emscripten
+cmake --preset emscripten
 ```
 
 ## Building
 
-After the project has been compiled, you can open the generated solution file in Visual Studio, or use CMake to build the project.
+After the project has been generated, you can open the generated solution file in Visual Studio, or use CMake to build the project.
 
 ### Building with Visual Studio
 
