@@ -499,14 +499,6 @@ void init()
 
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule( device, &shaderModuleDescriptor );
 
-    // Set up the render pipeline.
-
-    // Setup the color targets.
-    WGPUColorTargetState colorTargetState {};
-    colorTargetState.format    = preferredFormat;
-    colorTargetState.blend     = nullptr;  // &blendState;
-    colorTargetState.writeMask = WGPUColorWriteMask_All;
-
     // Setup the binding layout.
     // The binding group only requires a single entry:
     // @group(0) @binding(0) var<uniform> mvp : mat4x4f;
@@ -535,25 +527,20 @@ void init()
     pipelineDescriptor.label  = "Render Pipeline";
     pipelineDescriptor.layout = pipelineLayout;
 
-    // Primitive assembly.
-    pipelineDescriptor.primitive.topology         = WGPUPrimitiveTopology_TriangleList;
-    pipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-    pipelineDescriptor.primitive.frontFace        = WGPUFrontFace_CCW;
-    pipelineDescriptor.primitive.cullMode         = WGPUCullMode_Back;
-
     // Describe the vertex layout.
-    WGPUVertexAttribute    attributes[] = { {
+    WGPUVertexAttribute attributes[] = { {
                                              // glm::vec3 position;
-                                                .format         = WGPUVertexFormat_Float32x3,
-                                                .offset         = 0,
-                                                .shaderLocation = 0,
+                                             .format         = WGPUVertexFormat_Float32x3,
+                                             .offset         = 0,
+                                             .shaderLocation = 0,
                                          },
-                                            {
+                                         {
                                              // glm::vec3 color;
-                                                .format         = WGPUVertexFormat_Float32x3,
-                                                .offset         = sizeof( glm::vec3 ),
-                                                .shaderLocation = 1,
+                                             .format         = WGPUVertexFormat_Float32x3,
+                                             .offset         = sizeof( glm::vec3 ),
+                                             .shaderLocation = 1,
                                          } };
+
     WGPUVertexBufferLayout vertexBufferLayout {};
     vertexBufferLayout.arrayStride    = sizeof( Vertex );
     vertexBufferLayout.stepMode       = WGPUVertexStepMode_Vertex;
@@ -567,6 +554,18 @@ void init()
     pipelineDescriptor.vertex.constants     = nullptr;
     pipelineDescriptor.vertex.bufferCount   = 1;
     pipelineDescriptor.vertex.buffers       = &vertexBufferLayout;
+
+    // Primitive assembly.
+    pipelineDescriptor.primitive.topology         = WGPUPrimitiveTopology_TriangleList;
+    pipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    pipelineDescriptor.primitive.frontFace        = WGPUFrontFace_CCW;
+    pipelineDescriptor.primitive.cullMode         = WGPUCullMode_Back;
+
+    // Setup the color targets for the fragment shader stage.
+    WGPUColorTargetState colorTargetState {};
+    colorTargetState.format    = preferredFormat;
+    colorTargetState.blend     = nullptr;  // &blendState;
+    colorTargetState.writeMask = WGPUColorWriteMask_All;
 
     // Fragment shader stage.
     WGPUFragmentState fragmentState {};
