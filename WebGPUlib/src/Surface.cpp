@@ -74,8 +74,6 @@ std::shared_ptr<TextureView> Surface::getNextTextureView()
 
     std::shared_ptr<TextureView> view = std::make_shared<MakeTextureView>( surfaceTexture.texture, &viewDescriptor );
 
-    wgpuTextureRelease( surfaceTexture.texture );
-
     return view;
 }
 
