@@ -381,7 +381,7 @@ void resize()
     wgpuSurfaceConfigure( surface, &surfaceConfiguration );
 }
 
-WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
+WGPUTexture getNextSurfaceTexture( WGPUSurface s )
 {
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture( s, &surfaceTexture );
@@ -395,7 +395,7 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
 
         return nullptr;
     }
-    // Same as previous slide...
+
     switch ( surfaceTexture.status )
     {
     case WGPUSurfaceGetCurrentTextureStatus_Success:
@@ -419,28 +419,26 @@ WGPUTextureView getNextSurfaceTextureView( WGPUSurface s )
         return nullptr;
     }
 
+    return surfaceTexture.texture;
+}
+
+void render()
+{
+    // Get the next texture view from the surface.
+    WGPUTexture surfaceTexture = getNextSurfaceTexture( surface );
+    if ( !surfaceTexture )
+        return;
+
     WGPUTextureViewDescriptor viewDescriptor {};
     viewDescriptor.label           = "Surface texture view";
-    viewDescriptor.format          = wgpuTextureGetFormat( surfaceTexture.texture );
+    viewDescriptor.format          = wgpuTextureGetFormat( surfaceTexture );
     viewDescriptor.dimension       = WGPUTextureViewDimension_2D;
     viewDescriptor.baseMipLevel    = 0;
     viewDescriptor.mipLevelCount   = 1;
     viewDescriptor.baseArrayLayer  = 0;
     viewDescriptor.arrayLayerCount = 1;
     viewDescriptor.aspect          = WGPUTextureAspect_All;
-    WGPUTextureView targetView     = wgpuTextureCreateView( surfaceTexture.texture, &viewDescriptor );
-
-    wgpuTextureRelease( surfaceTexture.texture );
-
-    return targetView;
-}
-
-void render()
-{
-    // Get the next texture view from the surface.
-    WGPUTextureView view = getNextSurfaceTextureView( surface );
-    if ( !view )
-        return;
+    WGPUTextureView surfaceTextureView     = wgpuTextureCreateView( surfaceTexture, &viewDescriptor );
 
     // Create a command encoder.
     WGPUCommandEncoderDescriptor encoderDescriptor {};
@@ -449,7 +447,7 @@ void render()
 
     // Create a render pass.
     WGPURenderPassColorAttachment colorAttachment {};
-    colorAttachment.view          = view;
+    colorAttachment.view          = surfaceTextureView;
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp        = WGPULoadOp_Clear;
     colorAttachment.storeOp       = WGPUStoreOp_Store;
@@ -479,10 +477,6 @@ void render()
     wgpuQueueOnSubmittedWorkDone( queue, onQueueWorkDone, nullptr );
     wgpuQueueSubmit( queue, 1, &commandBuffer );
 
-    // Cleanup
-    wgpuCommandBufferRelease( commandBuffer );
-    wgpuCommandEncoderRelease( encoder );
-    wgpuTextureViewRelease( view );
 #ifndef __EMSCRIPTEN__
     // Do not present when using emscripten. This happens automatically.
     wgpuSurfacePresent( surface );
@@ -494,6 +488,12 @@ void render()
 #elif defined( WEBGPU_BACKEND_WGPU )
     wgpuDevicePoll( device, false, nullptr );
 #endif
+
+    // Cleanup
+    wgpuCommandBufferRelease( commandBuffer );
+    wgpuCommandEncoderRelease( encoder );
+    wgpuTextureViewRelease( surfaceTextureView );
+    wgpuTextureRelease( surfaceTexture );
 }
 
 void update( void* userdata = nullptr )
