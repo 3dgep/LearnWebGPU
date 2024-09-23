@@ -238,42 +238,42 @@ void inspectAdapter( WGPUAdapter adapter )
     {
         deviceLimits = supportedLimits.limits;
         std::cout << "Limits: " << std::endl;
-        std::cout << "  maxTextureDimension1D: " << deviceLimits.maxTextureDimension1D << std::endl;
-        std::cout << "  maxTextureDimension2D: " << deviceLimits.maxTextureDimension2D << std::endl;
-        std::cout << "  maxTextureDimension3D: " << deviceLimits.maxTextureDimension3D << std::endl;
-        std::cout << "  maxTextureArrayLayers: " << deviceLimits.maxTextureArrayLayers << std::endl;
-        std::cout << "  maxBindGroups: " << deviceLimits.maxBindGroups << std::endl;
-        std::cout << "  maxBindGroupsPlusVertexBuffers: " << deviceLimits.maxBindGroupsPlusVertexBuffers << std::endl;
-        std::cout << "  maxBindingsPerBindGroup: " << deviceLimits.maxBindingsPerBindGroup << std::endl;
+        std::cout << "  maxTextureDimension1D:                     " << deviceLimits.maxTextureDimension1D << std::endl;
+        std::cout << "  maxTextureDimension2D:                     " << deviceLimits.maxTextureDimension2D << std::endl;
+        std::cout << "  maxTextureDimension3D:                     " << deviceLimits.maxTextureDimension3D << std::endl;
+        std::cout << "  maxTextureArrayLayers:                     " << deviceLimits.maxTextureArrayLayers << std::endl;
+        std::cout << "  maxBindGroups:                             " << deviceLimits.maxBindGroups << std::endl;
+        std::cout << "  maxBindGroupsPlusVertexBuffers:            " << deviceLimits.maxBindGroupsPlusVertexBuffers << std::endl;
+        std::cout << "  maxBindingsPerBindGroup:                   " << deviceLimits.maxBindingsPerBindGroup << std::endl;
         std::cout << "  maxDynamicUniformBuffersPerPipelineLayout: "
                   << deviceLimits.maxDynamicUniformBuffersPerPipelineLayout << std::endl;
         std::cout << "  maxDynamicStorageBuffersPerPipelineLayout: "
                   << deviceLimits.maxDynamicStorageBuffersPerPipelineLayout << std::endl;
-        std::cout << "  maxSampledTexturesPerShaderStage: " << deviceLimits.maxSampledTexturesPerShaderStage
+        std::cout << "  maxSampledTexturesPerShaderStage:          " << deviceLimits.maxSampledTexturesPerShaderStage
                   << std::endl;
-        std::cout << "  maxSamplersPerShaderStage: " << deviceLimits.maxSamplersPerShaderStage << std::endl;
-        std::cout << "  maxStorageBuffersPerShaderStage: " << deviceLimits.maxStorageBuffersPerShaderStage << std::endl;
-        std::cout << "  maxStorageTexturesPerShaderStage: " << deviceLimits.maxStorageTexturesPerShaderStage
+        std::cout << "  maxSamplersPerShaderStage:                 " << deviceLimits.maxSamplersPerShaderStage << std::endl;
+        std::cout << "  maxStorageBuffersPerShaderStage:           " << deviceLimits.maxStorageBuffersPerShaderStage << std::endl;
+        std::cout << "  maxStorageTexturesPerShaderStage:          " << deviceLimits.maxStorageTexturesPerShaderStage
                   << std::endl;
-        std::cout << "  maxUniformBuffersPerShaderStage: " << deviceLimits.maxUniformBuffersPerShaderStage << std::endl;
-        std::cout << "  maxUniformBufferBindingSize: " << deviceLimits.maxUniformBufferBindingSize << std::endl;
-        std::cout << "  maxStorageBufferBindingSize: " << deviceLimits.maxStorageBufferBindingSize << std::endl;
-        std::cout << "  minUniformBufferOffsetAlignment: " << deviceLimits.minUniformBufferOffsetAlignment << std::endl;
-        std::cout << "  minStorageBufferOffsetAlignment: " << deviceLimits.minStorageBufferOffsetAlignment << std::endl;
-        std::cout << "  maxVertexBuffers: " << deviceLimits.maxVertexBuffers << std::endl;
-        std::cout << "  maxBufferSize: " << deviceLimits.maxBufferSize << std::endl;
-        std::cout << "  maxVertexAttributes: " << deviceLimits.maxVertexAttributes << std::endl;
-        std::cout << "  maxVertexBufferArrayStride: " << deviceLimits.maxVertexBufferArrayStride << std::endl;
-        std::cout << "  maxInterStageShaderComponents: " << deviceLimits.maxInterStageShaderComponents << std::endl;
-        std::cout << "  maxInterStageShaderVariables: " << deviceLimits.maxInterStageShaderVariables << std::endl;
-        std::cout << "  maxColorAttachments:              " << deviceLimits.maxColorAttachments << std::endl;
-        std::cout << "  maxComputeWorkgroupStorageSize: " << deviceLimits.maxComputeWorkgroupStorageSize << std::endl;
-        std::cout << "  maxComputeInvocationsPerWorkgroup: " << deviceLimits.maxComputeInvocationsPerWorkgroup
+        std::cout << "  maxUniformBuffersPerShaderStage:           " << deviceLimits.maxUniformBuffersPerShaderStage << std::endl;
+        std::cout << "  maxUniformBufferBindingSize:               " << deviceLimits.maxUniformBufferBindingSize << std::endl;
+        std::cout << "  maxStorageBufferBindingSize:               " << deviceLimits.maxStorageBufferBindingSize << std::endl;
+        std::cout << "  minUniformBufferOffsetAlignment:           " << deviceLimits.minUniformBufferOffsetAlignment << std::endl;
+        std::cout << "  minStorageBufferOffsetAlignment:           " << deviceLimits.minStorageBufferOffsetAlignment << std::endl;
+        std::cout << "  maxVertexBuffers:                          " << deviceLimits.maxVertexBuffers << std::endl;
+        std::cout << "  maxBufferSize:                             " << deviceLimits.maxBufferSize << std::endl;
+        std::cout << "  maxVertexAttributes:                       " << deviceLimits.maxVertexAttributes << std::endl;
+        std::cout << "  maxVertexBufferArrayStride:                " << deviceLimits.maxVertexBufferArrayStride << std::endl;
+        std::cout << "  maxInterStageShaderComponents:             " << deviceLimits.maxInterStageShaderComponents << std::endl;
+        std::cout << "  maxInterStageShaderVariables:              " << deviceLimits.maxInterStageShaderVariables << std::endl;
+        std::cout << "  maxColorAttachments:                       " << deviceLimits.maxColorAttachments << std::endl;
+        std::cout << "  maxComputeWorkgroupStorageSize:            " << deviceLimits.maxComputeWorkgroupStorageSize << std::endl;
+        std::cout << "  maxComputeInvocationsPerWorkgroup:         " << deviceLimits.maxComputeInvocationsPerWorkgroup
                   << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeX: " << deviceLimits.maxComputeWorkgroupSizeX << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeY: " << deviceLimits.maxComputeWorkgroupSizeY << std::endl;
-        std::cout << "  maxComputeWorkgroupSizeZ: " << deviceLimits.maxComputeWorkgroupSizeZ << std::endl;
-        std::cout << "  maxComputeWorkgroupsPerDimension: " << deviceLimits.maxComputeWorkgroupsPerDimension
+        std::cout << "  maxComputeWorkgroupSizeX:                  " << deviceLimits.maxComputeWorkgroupSizeX << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeY:                  " << deviceLimits.maxComputeWorkgroupSizeY << std::endl;
+        std::cout << "  maxComputeWorkgroupSizeZ:                  " << deviceLimits.maxComputeWorkgroupSizeZ << std::endl;
+        std::cout << "  maxComputeWorkgroupsPerDimension:          " << deviceLimits.maxComputeWorkgroupsPerDimension
                   << std::endl;
     }
 
