@@ -101,9 +101,12 @@ Run the following commands to install and activate the version of Emscripten tha
 
 ```sh
 git submodule update --init tools/emsdk
+```
+
+```sh
 cd tools/emsdk
-.\emsdk install 3.1.65
-.\emsdk activate --permanent 3.1.65
+.\emsdk install latest
+.\emsdk activate --permanent latest
 ```
 
 ## Configure
