@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 
 // Perform a linear interpolation
 inline float lerp( float x0, float x1, float a )
@@ -18,11 +19,11 @@ inline void smooth( float& x0, float& x1, float deltaTime )
     float x;
     if ( std::fabsf( x0 ) < std::fabsf( x1 ) )  // Speeding up
     {
-        x = lerp( x1, x0, std::powf( 0.6f, deltaTime * 60.0f ) );
+        x = ::lerp( x1, x0, std::powf( 0.6f, deltaTime * 60.0f ) );
     }
     else  // Slowing down
     {
-        x = lerp( x1, x0, std::powf( 0.8f, deltaTime * 60.0f ) );
+        x = ::lerp( x1, x0, std::powf( 0.8f, deltaTime * 60.0f ) );
     }
 
     x0 = x;
@@ -67,8 +68,8 @@ void CameraController::update( float deltaTime )
 
         if ( mouseState.leftButton )
         {
-            rotate.x -= dy * rotationSpeed * deltaTime;
-            rotate.y -= dx * rotationSpeed * deltaTime;
+            rotate.x -= dy / 60.0f;// *rotationSpeed;
+            rotate.y -= dx / 60.0f;  // *rotationSpeed;
         }
     }
 
