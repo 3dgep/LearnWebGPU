@@ -17,3 +17,4 @@
 [submodule "externals/assimp"]
 	path = externals/assimp
 	url = https://github.com/assimp/assimp.git
+	ignore = dirty
