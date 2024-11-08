@@ -1,5 +1,4 @@
-/cmake-build-debug/
-/cmake-build-debug
 /build
 /out
+/cmake-build-*
 /.vs
