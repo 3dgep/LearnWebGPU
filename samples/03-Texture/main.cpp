@@ -643,9 +643,11 @@ WGPUTexture loadTexture( const std::filesystem::path& filePath )
 
     const WGPUExtent3D textureSize { static_cast<uint32_t>( width ), static_cast<uint32_t>( height ), 1u };
 
+    const std::string label = filePath.filename().string();
+
     // Create the texture object.
     WGPUTextureDescriptor textureDesc {};
-    textureDesc.label       = filePath.filename().string().c_str();
+    textureDesc.label       = label.c_str();
     textureDesc.dimension   = WGPUTextureDimension_2D;
     textureDesc.format      = WGPUTextureFormat_RGBA8Unorm;
     textureDesc.size        = textureSize;

@@ -23,22 +23,26 @@
     ],
     "buildPresets": [
         {
-            "name": "Emscripten-Debug",
+            "name": "emscripten-debug",
+            "displayName": "Emscripten (Debug)",
             "configurePreset": "emscripten",
             "configuration": "Debug"
         },
         {
-            "name": "Emscripten-Release",
+            "name": "emscripten-release",
+            "displayName": "Emscripten (Release)",
             "configurePreset": "emscripten",
             "configuration": "Release"
         },
         {
-            "name": "x64-Debug",
+            "name": "x64-debug",
+            "displayName": "Windows (Debug)",
             "configurePreset": "vs17",
             "configuration": "Debug"
         },
         {
-            "name": "x64-Release",
+            "name": "x64-release",
+            "displayName": "Windows (Release)",
             "configurePreset": "vs17",
             "configuration": "Release"
         }

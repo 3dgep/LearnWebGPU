@@ -128,14 +128,30 @@ After the project has been generated, you can open the generated solution file i
 
 ### Building with Visual Studio
 
+#### Windows Debug
+
 ```sh
-cmake --build --preset x64-Debug
+cmake --build --preset x64-debug
+```
+
+#### Windows Release
+
+```sh
+cmake --build --preset x64-release
 ```
 
 ### Building with Emscripten
 
+#### Emscripten Debug
+
 ```sh
-cmake --build --preset Emscripten-Debug
+cmake --build --preset emscripten-debug
+```
+
+#### Emscripten Release
+
+```sh
+cmake --build --preset emscripten-release
 ```
 
 ## Running
@@ -158,6 +174,11 @@ And open the following page in Chrome (or Edge):
 
 ![Cube Sample](CubeSample.png)
 
+Or, if you built the release version, you should be able to open the following in Chrome (or Edge):
+
+[http://localhost:8000/out/build/emscripten/samples/04-Mesh/Release/04-Mesh.html](http://localhost:8000/out/build/emscripten/samples/04-Mesh/Release/04-Mesh.html)
+
+![Sponza running in a web browser](04-Mesh.png)
 ## Known Issues
 
 * When using the Dawn WebGPU backend, the `fetch_dawn_dependencies.py` script can fail in cmake-gui with the error `OSError: [WinError 6] The handle is invalid`.
@@ -167,4 +188,3 @@ And open the following page in Chrome (or Edge):
   * Solution:
     * Make sure you have activated the Emscripten build toolchain using the command `.\emsdk activate --permanent 3.1.65` (while in the `tools/emsdk` folder).
     * Delete the `out/emscripten` folder and reconfigure & rebuild the project.
-
