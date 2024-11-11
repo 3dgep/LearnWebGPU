@@ -99,12 +99,21 @@ We need to install and activate the version of Emscripten that will be used for 
 
 Run the following commands to install and activate the version of Emscripten that is used for this project.
 
+Make sure the submodule is updated (this is usually required after a pull that changes the git hash of the submodule).
+
 ```sh
 git submodule update --init tools/emsdk
 ```
 
+Make sure you are running the next two commands in the emsdk folder.
+
 ```sh
 cd tools/emsdk
+```
+
+Make sure you are running the latest version of Emscripten and it is configured in your system paths.
+
+```sh
 .\emsdk install latest
 .\emsdk activate --permanent latest
 ```
